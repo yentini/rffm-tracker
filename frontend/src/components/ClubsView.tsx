@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Club, ClubsPagination } from '../types';
 import { fetchClubs } from '../services/api';
 import {
@@ -10,7 +10,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Search,
+  X,
   RefreshCcw,
+  Loader2,
 } from 'lucide-react';
 
 export const ClubsView: React.FC = () => {
@@ -19,17 +21,22 @@ export const ClubsView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const loadClubsPage = async (page: number) => {
+  // Estados para búsqueda por servidor
+  const [searchInput, setSearchInput] = useState<string>('');
+  const [activeSearch, setActiveSearch] = useState<string>('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadClubsPage = useCallback(async (page: number, search?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetchClubs(page);
+      const query = search !== undefined ? search : activeSearch;
+      const response = await fetchClubs(page, query);
       setClubs(response.clubs);
       setPagination(response.pagination);
       setCurrentPage(response.pagination.pagina_actual);
-      // Desplazar suavemente hacia arriba al cambiar de página
+      // Desplazamiento suave hacia arriba al cambiar de página
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Error al cargar clubes:', err);
@@ -37,22 +44,48 @@ export const ClubsView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [activeSearch]);
+
+  // Carga inicial
+  useEffect(() => {
+    loadClubsPage(1, '');
+  }, [loadClubsPage]);
+
+  // Manejo de cambio en el campo de búsqueda con debouncing automático de 500ms
+  const handleSearchInputChange = (val: string) => {
+    setSearchInput(val);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const trimmed = val.trim();
+      setActiveSearch(trimmed);
+      loadClubsPage(1, trimmed);
+    }, 500);
   };
 
-  useEffect(() => {
-    loadClubsPage(1);
-  }, []);
+  // Envío inmediato al presionar Enter en el formulario
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    const trimmed = searchInput.trim();
+    setActiveSearch(trimmed);
+    loadClubsPage(1, trimmed);
+  };
 
-  // Filtro en cliente para búsqueda rápida sobre la página actual
-  const filteredClubs = clubs.filter((club) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      club.nombre.toLowerCase().includes(q) ||
-      (club.localidad && club.localidad.toLowerCase().includes(q)) ||
-      club.codigo_club.includes(q)
-    );
-  });
+  // Limpiar búsqueda
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setActiveSearch('');
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    loadClubsPage(1, '');
+  };
 
   const totalPages = pagination ? pagination.total_paginas : 1;
   const totalRegistros = pagination ? pagination.total_registros : 0;
@@ -73,25 +106,58 @@ export const ClubsView: React.FC = () => {
           </div>
           {totalRegistros > 0 && (
             <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/30">
-              {totalRegistros} clubes
+              {totalRegistros} {totalRegistros === 1 ? 'club' : 'clubes'}
             </span>
           )}
         </div>
 
-        {/* Buscador rápido sobre la página */}
-        <div className="relative">
+        {/* Buscador oficial conectado a la API de la RFFM */}
+        <form onSubmit={handleSearchSubmit} className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrar por nombre, localidad o código..."
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-inner"
+            value={searchInput}
+            onChange={(e) => handleSearchInputChange(e.target.value)}
+            placeholder="Buscar por nombre oficial (ej. Adarve, Real Madrid, Getafe)..."
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-10 pr-20 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-inner"
           />
-        </div>
+
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {searchInput && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                title="Limpiar búsqueda"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {isLoading && (
+              <div className="p-1 text-blue-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              </div>
+            )}
+          </div>
+        </form>
+
+        {/* Indicador de filtro activo */}
+        {activeSearch && (
+          <div className="flex items-center justify-between text-[11px] bg-blue-950/30 border border-blue-800/40 px-3 py-1.5 rounded-xl text-blue-300">
+            <span className="truncate">
+              Búsqueda en RFFM: <strong className="text-white">"{activeSearch}"</strong> ({totalRegistros} encontrados)
+            </span>
+            <button
+              onClick={handleClearSearch}
+              className="text-[10px] text-blue-400 hover:text-blue-200 underline ml-2 shrink-0"
+            >
+              Ver todos los clubes
+            </button>
+          </div>
+        )}
 
         {/* Barra de control de paginación superior */}
-        {pagination && (
+        {pagination && totalPages > 1 && (
           <div className="flex items-center justify-between pt-1 text-xs">
             <div className="flex items-center gap-1">
               <button
@@ -160,7 +226,7 @@ export const ClubsView: React.FC = () => {
       {/* Lista de clubes o Skeleton de carga */}
       {isLoading ? (
         <div className="space-y-2.5">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex items-center gap-3.5 animate-pulse"
@@ -173,14 +239,27 @@ export const ClubsView: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : filteredClubs.length === 0 ? (
+      ) : clubs.length === 0 ? (
         <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-center space-y-2">
           <Shield className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-xs text-slate-400">No se encontraron clubes para esta búsqueda.</p>
+          <h3 className="text-sm font-bold text-slate-200">No se encontraron clubes</h3>
+          <p className="text-xs text-slate-400">
+            {activeSearch
+              ? `No existen coincidencias para "${activeSearch}" en la RFFM.`
+              : 'No hay datos disponibles en esta página.'}
+          </p>
+          {activeSearch && (
+            <button
+              onClick={handleClearSearch}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold mt-2"
+            >
+              Restablecer búsqueda
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filteredClubs.map((club) => (
+          {clubs.map((club) => (
             <div
               key={club.codigo_club}
               className="bg-slate-900/80 hover:bg-slate-850/90 border border-slate-800/80 hover:border-blue-500/30 rounded-2xl p-3.5 flex items-center gap-3.5 transition-all shadow-md group"
@@ -194,7 +273,6 @@ export const ClubsView: React.FC = () => {
                     className="w-full h-full object-contain"
                     loading="lazy"
                     onError={(e) => {
-                      // Fallback visual si el escudo falla en descargar
                       (e.target as HTMLElement).style.display = 'none';
                     }}
                   />

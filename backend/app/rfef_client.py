@@ -436,9 +436,18 @@ class RFEFClient:
             )
         ]
 
-    async def get_clubs(self, page: int = 1) -> ClubsResponse:
-        """Obtiene el listado oficial y paginado de clubes de la RFFM."""
-        url = f"{self.clubs_url}?p={page}"
+    async def get_clubs(
+        self,
+        page: int = 1,
+        search: Optional[str] = None,
+        codclub: Optional[str] = None,
+    ) -> ClubsResponse:
+        """Obtiene el listado oficial y paginado de clubes de la RFFM, con soporte de búsqueda."""
+        params: dict[str, str] = {"p": str(page)}
+        if codclub and codclub.strip():
+            params["codclub"] = codclub.strip()
+        if search and search.strip():
+            params["search"] = search.strip()
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -449,12 +458,13 @@ class RFEFClient:
         }
 
         try:
+            timeout = max(self.timeout, 25.0)
             async with httpx.AsyncClient(
                 verify=self.verify_ssl,
-                timeout=self.timeout,
+                timeout=timeout,
                 follow_redirects=True,
             ) as client:
-                response = await client.get(url, headers=headers)
+                response = await client.get(self.clubs_url, params=params, headers=headers)
                 response.raise_for_status()
                 data = response.json()
                 page_props = data.get("pageProps", {})

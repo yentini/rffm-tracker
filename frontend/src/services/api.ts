@@ -311,11 +311,21 @@ export async function fetchActaPartido(
 }
 
 /**
- * Consulta el listado oficial y paginado de clubes de la RFFM.
+ * Consulta el listado oficial y paginado de clubes de la RFFM con soporte de búsqueda.
  */
-export async function fetchClubs(page: number = 1): Promise<ClubsResponse> {
+export async function fetchClubs(
+  page: number = 1,
+  search?: string,
+  codclub?: string
+): Promise<ClubsResponse> {
   const url = new URL(`${BASE_URL}/api/clubs`);
   url.searchParams.set('p', page.toString());
+  if (search && search.trim()) {
+    url.searchParams.set('search', search.trim());
+  }
+  if (codclub && codclub.trim()) {
+    url.searchParams.set('codclub', codclub.trim());
+  }
 
   try {
     const response = await fetch(url.toString(), {
@@ -326,7 +336,9 @@ export async function fetchClubs(page: number = 1): Promise<ClubsResponse> {
   } catch (error) {
     console.warn('[API Client] Error al obtener clubes vía backend, probando directo de RFFM:', error);
     try {
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/clubes.json?p=${page}`;
+      const qSearch = search && search.trim() ? encodeURIComponent(search.trim()) : '';
+      const qCod = codclub && codclub.trim() ? encodeURIComponent(codclub.trim()) : '';
+      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/clubes.json?p=${page}&search=${qSearch}&codclub=${qCod}`;
       const directRes = await fetch(directUrl);
       if (directRes.ok) {
         const directData = await directRes.json();

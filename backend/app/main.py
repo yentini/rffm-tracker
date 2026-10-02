@@ -226,14 +226,16 @@ async def get_partidos(
     response_model=ClubsResponse,
     status_code=status.HTTP_200_OK,
     tags=["Clubes"],
-    summary="Listar clubes federados con paginación",
+    summary="Listar y buscar clubes federados con paginación",
 )
 async def get_clubs(
     p: int = Query(default=1, ge=1, description="Número de página a consultar"),
+    search: Optional[str] = Query(default=None, description="Término de búsqueda por nombre de club"),
+    codclub: Optional[str] = Query(default=None, description="Filtrar por código de club específico"),
 ) -> ClubsResponse:
-    """Obtiene el listado oficial y paginado de clubes registrados en la RFFM."""
+    """Obtiene o busca clubes oficiales en la RFFM con paginación y filtro de texto."""
     try:
-        return await rfef_client.get_clubs(page=p)
+        return await rfef_client.get_clubs(page=p, search=search, codclub=codclub)
     except RFEFClientError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
