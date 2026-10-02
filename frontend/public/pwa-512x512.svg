@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <!-- Balón estilizado con acento rojo y dorado -->
+  <circle cx="256" cy="240" r="160" fill="#1e293b" stroke="#dc2626" stroke-width="14"/>
+  <circle cx="256" cy="240" r="80" fill="#dc2626"/>
+  <polygon points="256,140 320,190 295,270 215,270 190,190" fill="#ffffff" opacity="0.9"/>
+  <circle cx="256" cy="240" r="26" fill="#eab308"/>
+  <text x="256" y="450" font-family="system-ui, sans-serif" font-size="48" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">RFEF TRACKER</text>
+</svg>
