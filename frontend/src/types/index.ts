@@ -243,4 +243,123 @@ export interface ClubsResponse {
   clubs: Club[];
 }
 
+export interface ClubEquipo {
+  codigo_equipo: string;
+  nombre_equipo: string;
+  categoria: string;
+  en_competicion?: string | null;
+}
 
+export interface ClubEquipacion {
+  camiseta?: string | null;
+  pantalon?: string | null;
+  medias?: string | null;
+}
+
+export interface ClubDetail {
+  codigo: string;
+  nombre_club: string;
+  escudo?: string | null;
+  delegacion?: string | null;
+  comarca?: string | null;
+  cif?: string | null;
+  domicilio?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  codigo_postal?: string | null;
+  portal_web?: string | null;
+  email?: string | null;
+  telefonos?: string | null;
+  presidente?: string | null;
+  fecha_fundacion?: string | null;
+  twitter?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  equipaciones: ClubEquipacion[];
+  equipos: ClubEquipo[];
+}
+
+export interface TeamJugador {
+  cod_jugador: string;
+  nombre: string;
+}
+
+export interface TeamTecnico {
+  cod_tecnico: string;
+  nombre: string;
+}
+
+export interface TeamDelegado {
+  cod_delegado?: string | null;
+  nombre: string;
+}
+
+export interface TeamDetail {
+  codigo_equipo: string;
+  codigo_club: string;
+  nombre_equipo: string;
+  nombre_club: string;
+  escudo_club?: string | null;
+  categoria: string;
+  codigo_categoria?: string | null;
+  campo?: string | null;
+  codigo_campo?: string | null;
+  portal_web?: string | null;
+  email?: string | null;
+  telefonos?: string | null;
+  domicilio?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  codigo_postal?: string | null;
+  tecnicos: TeamTecnico[];
+  jugadores: TeamJugador[];
+  delegados: TeamDelegado[];
+  equipaciones: ClubEquipacion[];
+}
+
+export interface PlayerStat {
+  nombre: string;
+  valor: string;
+  codigo_tipo_tarjeta?: string | null;
+}
+
+export interface PlayerTemporada {
+  nombre_temporada: string;
+  codigo_temporada: string;
+}
+
+export interface PlayerCompeticion {
+  nombre_competicion: string;
+  codigo_competicion: string;
+  nombre_grupo?: string | null;
+  codgrupo?: string | null;
+  codequipo?: string | null;
+  nombre_equipo?: string | null;
+  nombre_club?: string | null;
+  posicion_equipo?: string | null;
+  puntos_equipo?: string | null;
+  escudo_equipo?: string | null;
+}
+
+export interface PlayerDetail {
+  codigo_jugador: string;
+  nombre_jugador: string;
+  edad?: string | null;
+  anio_nacimiento?: string | null;
+  equipo?: string | null;
+  codigo_equipo?: string | null;
+  escudo_equipo?: string | null;
+  foto?: string | null;
+  categoria_equipo?: string | null;
+  codigo_temporada?: string | null;
+  nombre_temporada?: string | null;
+  dorsal_jugador?: string | null;
+  posicion_jugador?: string | null;
+  minutos_totales_jugados?: string | null;
+  media_minutos_totales_jugados?: string | null;
+  es_portero?: string | null;
+  listado_temporadas: PlayerTemporada[];
+  competiciones_participa: PlayerCompeticion[];
+  partidos: PlayerStat[];
+  tarjetas: PlayerStat[];
+}

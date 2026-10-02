@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ActaPartido, PartidoCalendario } from '../types';
+import { ActaPartido, PartidoCalendario, PlayerDetail } from '../types';
+import { fetchPlayerDetail } from '../services/api';
+import { PlayerDetailModal } from './PlayerDetailModal';
 import {
   X,
   Shield,
@@ -10,6 +12,7 @@ import {
   Loader2,
   AlertCircle,
   ExternalLink,
+  ChevronRight,
 } from 'lucide-react';
 
 interface MatchDetailModalProps {
@@ -42,6 +45,35 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'incidencias' | 'alineaciones' | 'info'>('incidencias');
   const [teamTab, setTeamTab] = useState<'local' | 'visitante'>('local');
+
+  // Estado para la ficha del jugador seleccionado
+  const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
+  const [playerDetail, setPlayerDetail] = useState<PlayerDetail | null>(null);
+  const [isPlayerDetailLoading, setIsPlayerDetailLoading] = useState<boolean>(false);
+  const [playerDetailError, setPlayerDetailError] = useState<string | null>(null);
+
+  const handleOpenPlayer = async (codjugador?: string | null) => {
+    if (!codjugador) return;
+    setSelectedPlayerCode(codjugador);
+    setPlayerDetail(null);
+    setPlayerDetailError(null);
+    setIsPlayerDetailLoading(true);
+
+    try {
+      const pData = await fetchPlayerDetail(codjugador);
+      setPlayerDetail(pData);
+    } catch (err: any) {
+      setPlayerDetailError(err.message || 'Error al obtener la ficha del jugador');
+    } finally {
+      setIsPlayerDetailLoading(false);
+    }
+  };
+
+  const handleClosePlayer = () => {
+    setSelectedPlayerCode(null);
+    setPlayerDetail(null);
+    setPlayerDetailError(null);
+  };
 
   if (!isOpen || !partido) return null;
 
@@ -387,18 +419,23 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                         {titulares.map((j, i) => (
                           <div
                             key={`tit-${i}`}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs"
+                            onClick={() => j.codjugador && handleOpenPlayer(j.codjugador)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs transition-all ${
+                              j.codjugador
+                                ? 'hover:border-blue-500/50 hover:bg-slate-900/80 cursor-pointer group'
+                                : ''
+                            }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
-                              <span className="w-6 h-6 rounded-lg bg-slate-800 text-rose-400 font-extrabold flex items-center justify-center text-[11px] border border-slate-700">
+                              <span className="w-6 h-6 rounded-lg bg-slate-800 text-rose-400 font-extrabold flex items-center justify-center text-[11px] border border-slate-700 group-hover:text-blue-300">
                                 {j.dorsal || '-'}
                               </span>
                               <div className="truncate">
-                                <p className="font-semibold text-white truncate">{j.nombre_jugador}</p>
+                                <p className="font-semibold text-white truncate group-hover:text-blue-300 transition-colors">{j.nombre_jugador}</p>
                                 <p className="text-[10px] text-slate-400 truncate">{j.posicion || 'Jugador'}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               {j.capitan === '1' && (
                                 <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 rounded" title="Capitán">
                                   C
@@ -408,6 +445,9 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                                 <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1 rounded" title="Portero">
                                   P
                                 </span>
+                              )}
+                              {j.codjugador && (
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
                               )}
                             </div>
                           </div>
@@ -425,17 +465,25 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                           {suplentes.map((j, i) => (
                             <div
                               key={`sup-${i}`}
-                              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 text-xs opacity-90"
+                              onClick={() => j.codjugador && handleOpenPlayer(j.codjugador)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 text-xs opacity-90 transition-all ${
+                                j.codjugador
+                                  ? 'hover:border-blue-500/50 hover:bg-slate-900/80 cursor-pointer group hover:opacity-100'
+                                  : ''
+                              }`}
                             >
                               <div className="flex items-center gap-2.5 truncate">
-                                <span className="w-6 h-6 rounded-lg bg-slate-800/60 text-slate-300 font-bold flex items-center justify-center text-[11px] border border-slate-700/60">
+                                <span className="w-6 h-6 rounded-lg bg-slate-800/60 text-slate-300 font-bold flex items-center justify-center text-[11px] border border-slate-700/60 group-hover:text-blue-300">
                                   {j.dorsal || '-'}
                                 </span>
                                 <div className="truncate">
-                                  <p className="font-medium text-slate-200 truncate">{j.nombre_jugador}</p>
+                                  <p className="font-medium text-slate-200 truncate group-hover:text-blue-300 transition-colors">{j.nombre_jugador}</p>
                                   <p className="text-[10px] text-slate-500 truncate">{j.posicion || 'Suplente'}</p>
                                 </div>
                               </div>
+                              {j.codjugador && (
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                              )}
                             </div>
                           ))}
                         </div>
@@ -521,6 +569,16 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal con la ficha detallada del jugador */}
+      <PlayerDetailModal
+        isOpen={Boolean(selectedPlayerCode)}
+        onClose={handleClosePlayer}
+        playerDetail={playerDetail}
+        isLoading={isPlayerDetailLoading}
+        error={playerDetailError}
+        onRetry={selectedPlayerCode ? () => handleOpenPlayer(selectedPlayerCode) : undefined}
+      />
     </div>
   );
 };

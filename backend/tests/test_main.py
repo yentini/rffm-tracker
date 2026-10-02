@@ -252,7 +252,210 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(data["clubs"][0]["nombre"], "REAL MADRID C.F.")
         self.assertEqual(data["clubs"][0]["codigo_club"], "40017")
 
+    @patch("app.main.rfef_client.get_club_detail", new_callable=AsyncMock)
+    def test_get_club_detail_returns_club_and_teams(self, mock_get_club_detail):
+        # Arrange
+        from app.schemas import ClubDetail, ClubEquipo, ClubEquipacion
+        mock_get_club_detail.return_value = ClubDetail(
+            codigo="30491",
+            nombre_club="A.D. UNION ADARVE",
+            escudo="https://appweb.rffm.es/pnfg/pimg/Clubes/adarve.jpg",
+            delegacion="DELEGACION VALDEBERNARDO",
+            comarca="",
+            cif="G80455595",
+            domicilio="C/ SANTIAGO DE COMPOSTELA, 104",
+            localidad="Madrid",
+            provincia="Madrid",
+            codigo_postal="28035",
+            portal_web="www.unionadarve.com",
+            email="info@unionadarve.com",
+            telefonos="610579843",
+            presidente="VICTOR SALAMANCA CUEVAS",
+            fecha_fundacion=None,
+            twitter="UnionAdarve",
+            instagram="@adunionadarve",
+            facebook=None,
+            equipaciones=[
+                ClubEquipacion(camiseta="ROJA Y NEGRA", pantalon="BLANCO", medias="BLANCAS")
+            ],
+            equipos=[
+                ClubEquipo(
+                    codigo_equipo="1592",
+                    nombre_equipo="A.D. UNION ADARVE 'A'",
+                    categoria="TERCERA FEDERACION",
+                    en_competicion="1",
+                ),
+                ClubEquipo(
+                    codigo_equipo="1594",
+                    nombre_equipo="A.D. UNION ADARVE 'B'",
+                    categoria="LIGA NACIONAL JUVENIL",
+                    en_competicion="1",
+                ),
+            ],
+        )
+
+        # Act
+        response = self.client.get("/api/clubs/30491")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["codigo"], "30491")
+        self.assertEqual(data["nombre_club"], "A.D. UNION ADARVE")
+        self.assertEqual(data["localidad"], "Madrid")
+        self.assertEqual(data["presidente"], "VICTOR SALAMANCA CUEVAS")
+        self.assertEqual(len(data["equipaciones"]), 1)
+        self.assertEqual(data["equipaciones"][0]["camiseta"], "ROJA Y NEGRA")
+        self.assertEqual(len(data["equipos"]), 2)
+        self.assertEqual(data["equipos"][0]["nombre_equipo"], "A.D. UNION ADARVE 'A'")
+        self.assertEqual(data["equipos"][0]["categoria"], "TERCERA FEDERACION")
+        self.assertEqual(data["equipos"][1]["codigo_equipo"], "1594")
+
+    @patch("app.main.rfef_client.get_club_detail", new_callable=AsyncMock)
+    def test_get_club_detail_handles_rfef_error(self, mock_get_club_detail):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_get_club_detail.side_effect = RFEFClientError("Servidor RFFM no responde")
+
+        # Act
+        response = self.client.get("/api/clubs/999999")
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error al consultar ficha de club en RFFM", response.json()["detail"])
+
+    @patch("app.main.rfef_client.get_team_detail", new_callable=AsyncMock)
+    def test_get_team_detail_returns_team_players_and_staff(self, mock_get_team_detail):
+        # Arrange
+        from app.schemas import TeamDetail, TeamJugador, TeamTecnico, TeamDelegado, ClubEquipacion
+        mock_get_team_detail.return_value = TeamDetail(
+            codigo_equipo="364579",
+            codigo_club="30491",
+            nombre_equipo="A.D. UNION ADARVE 'D'",
+            nombre_club="A.D. UNION ADARVE",
+            escudo_club="https://appweb.rffm.es/pnfg/pimg/Clubes/adarve.jpg",
+            categoria="PRIMERA CADETE",
+            codigo_categoria="18",
+            campo="VEREDA GANAPANES 2 (HA)",
+            codigo_campo="7685149",
+            portal_web="www.unionadarve.com",
+            email="info@unionadarve.com",
+            telefonos="610579843",
+            domicilio="C/ Becerrea, 4",
+            localidad="Madrid",
+            provincia="Madrid",
+            codigo_postal="28029",
+            tecnicos=[
+                TeamTecnico(cod_tecnico="20487455", nombre="PEREÑA GARCIA, JUAN JOSE")
+            ],
+            jugadores=[
+                TeamJugador(cod_jugador="16257922", nombre="ALEMAN LINARES, SEBASTIAN"),
+                TeamJugador(cod_jugador="22938688", nombre="AYLLON HEREDIA, PABLO"),
+            ],
+            delegados=[],
+            equipaciones=[
+                ClubEquipacion(camiseta="ROJA Y NEGRA", pantalon="BLANCO", medias="BLANCAS")
+            ],
+        )
+
+        # Act
+        response = self.client.get("/api/teams/364579")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["codigo_equipo"], "364579")
+        self.assertEqual(data["nombre_equipo"], "A.D. UNION ADARVE 'D'")
+        self.assertEqual(data["campo"], "VEREDA GANAPANES 2 (HA)")
+        self.assertEqual(len(data["tecnicos"]), 1)
+        self.assertEqual(data["tecnicos"][0]["nombre"], "PEREÑA GARCIA, JUAN JOSE")
+        self.assertEqual(len(data["jugadores"]), 2)
+        self.assertEqual(data["jugadores"][0]["nombre"], "ALEMAN LINARES, SEBASTIAN")
+
+    @patch("app.main.rfef_client.get_team_detail", new_callable=AsyncMock)
+    def test_get_team_detail_handles_rfef_error(self, mock_get_team_detail):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_get_team_detail.side_effect = RFEFClientError("Equipo no encontrado")
+
+        # Act
+        response = self.client.get("/api/teams/999999")
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error al consultar ficha de equipo en RFFM", response.json()["detail"])
+
+    @patch("app.main.rfef_client.get_player_detail", new_callable=AsyncMock)
+    def test_get_player_detail_returns_player_info(self, mock_get_player_detail):
+        # Arrange
+        from app.schemas import PlayerDetail, PlayerStat, PlayerTemporada, PlayerCompeticion
+        mock_get_player_detail.return_value = PlayerDetail(
+            codigo_jugador="9936160",
+            nombre_jugador="PABLO GARCIA LOPEZ",
+            edad="15",
+            anio_nacimiento="2009",
+            equipo="A.D. UNION ADARVE 'D'",
+            codigo_equipo="364579",
+            escudo_equipo="https://appweb.rffm.es/pnfg/pimg/Clubes/adarve.jpg",
+            categoria_equipo="PRIMERA CADETE",
+            dorsal_jugador="10",
+            posicion_jugador="Centrocampista",
+            minutos_totales_jugados="1240",
+            media_minutos_totales_jugados="70",
+            es_portero="0",
+            listado_temporadas=[
+                PlayerTemporada(nombre_temporada="2026-2027", codigo_temporada="22"),
+                PlayerTemporada(nombre_temporada="2025-2026", codigo_temporada="21"),
+            ],
+            competiciones_participa=[
+                PlayerCompeticion(
+                    nombre_competicion="PRIMERA CADETE",
+                    codigo_competicion="18",
+                    nombre_grupo="Grupo 3",
+                    posicion_equipo="2",
+                    puntos_equipo="45",
+                )
+            ],
+            partidos=[
+                PlayerStat(nombre="Convocados", valor="18"),
+                PlayerStat(nombre="Titular", valor="16"),
+                PlayerStat(nombre="Total Goles", valor="5"),
+            ],
+            tarjetas=[
+                PlayerStat(nombre="Amarillas", valor="2", codigo_tipo_tarjeta="1"),
+            ],
+        )
+
+        # Act
+        response = self.client.get("/api/players/9936160")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["codigo_jugador"], "9936160")
+        self.assertEqual(data["nombre_jugador"], "PABLO GARCIA LOPEZ")
+        self.assertEqual(data["dorsal_jugador"], "10")
+        self.assertEqual(len(data["listado_temporadas"]), 2)
+        self.assertEqual(len(data["competiciones_participa"]), 1)
+        self.assertEqual(len(data["partidos"]), 3)
+        self.assertEqual(len(data["tarjetas"]), 1)
+
+    @patch("app.main.rfef_client.get_player_detail", new_callable=AsyncMock)
+    def test_get_player_detail_handles_rfef_error(self, mock_get_player_detail):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_get_player_detail.side_effect = RFEFClientError("Jugador no encontrado")
+
+        # Act
+        response = self.client.get("/api/players/999999")
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error al consultar ficha de jugador en RFFM", response.json()["detail"])
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
 

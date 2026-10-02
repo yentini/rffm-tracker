@@ -2,20 +2,23 @@
 
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.rfef_client import RFEFClient, RFEFClientError
 from app.schemas import (
     ActaResponse,
     CalendarioResponse,
+    ClubDetail,
     ClubsResponse,
     CompetitionsResponse,
     GameTypesResponse,
     GroupsResponse,
     HealthResponse,
     ListaPartidosResponse,
+    PlayerDetail,
     SeasonsResponse,
+    TeamDetail,
 )
 
 rfef_client = RFEFClient()
@@ -240,6 +243,67 @@ async def get_clubs(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al sincronizar clubes con RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/clubs/{codficha}",
+    response_model=ClubDetail,
+    status_code=status.HTTP_200_OK,
+    tags=["Clubes"],
+    summary="Obtener ficha detallada de un club y sus equipos federados",
+)
+async def get_club_detail(
+    codficha: str = Path(..., description="Código identificador del club en la RFFM"),
+) -> ClubDetail:
+    """Obtiene la información oficial del club (datos generales, contacto) y su lista de equipos."""
+    try:
+        return await rfef_client.get_club_detail(codficha=codficha)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al consultar ficha de club en RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/teams/{codficha}",
+    response_model=TeamDetail,
+    status_code=status.HTTP_200_OK,
+    tags=["Equipos"],
+    summary="Obtener ficha detallada de un equipo, cuerpo técnico y plantilla",
+)
+async def get_team_detail(
+    codficha: str = Path(..., description="Código identificador del equipo en la RFFM"),
+) -> TeamDetail:
+    """Obtiene la información oficial del equipo, su terreno de juego, técnicos y plantilla de jugadores."""
+    try:
+        return await rfef_client.get_team_detail(codficha=codficha)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al consultar ficha de equipo en RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/players/{codjugador}",
+    response_model=PlayerDetail,
+    status_code=status.HTTP_200_OK,
+    tags=["Jugadores"],
+    summary="Obtener ficha detallada de un jugador, estadísticas y temporadas",
+)
+async def get_player_detail(
+    codjugador: str = Path(..., description="Código identificador del jugador en la RFFM"),
+    temporada: Optional[str] = Query(None, description="Código de temporada para histórico"),
+) -> PlayerDetail:
+    """Obtiene la información oficial del jugador, estadísticas de partidos, tarjetas y temporadas."""
+    try:
+        return await rfef_client.get_player_detail(codjugador=codjugador, temporada=temporada)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al consultar ficha de jugador en RFFM: {exc}",
         ) from exc
 
 

@@ -10,6 +10,9 @@ from app.schemas import (
     ActaPartido,
     CalendarioResponse,
     Club,
+    ClubDetail,
+    ClubEquipacion,
+    ClubEquipo,
     ClubsPagination,
     ClubsResponse,
     Competition,
@@ -20,7 +23,15 @@ from app.schemas import (
     Jornada,
     Partido,
     PartidoCalendario,
+    PlayerCompeticion,
+    PlayerDetail,
+    PlayerStat,
+    PlayerTemporada,
     Season,
+    TeamDelegado,
+    TeamDetail,
+    TeamJugador,
+    TeamTecnico,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,6 +61,21 @@ RFFM_ACTA_URL_TEMPLATE = os.getenv(
     "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/acta-partido/{codacta}.json",
 )
 
+RFFM_FICHA_CLUB_URL_TEMPLATE = os.getenv(
+    "RFFM_FICHA_CLUB_URL_TEMPLATE",
+    "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichaclub/{codficha}.json",
+)
+
+RFFM_FICHA_EQUIPO_URL_TEMPLATE = os.getenv(
+    "RFFM_FICHA_EQUIPO_URL_TEMPLATE",
+    "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichaequipo/{codficha}.json",
+)
+
+RFFM_FICHA_JUGADOR_URL_TEMPLATE = os.getenv(
+    "RFFM_FICHA_JUGADOR_URL_TEMPLATE",
+    "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichajugador/{codjugador}.json",
+)
+
 
 def fix_escudo_url(url: Optional[str]) -> Optional[str]:
     """Normaliza y concatena URL del escudo de la RFFM."""
@@ -75,11 +101,19 @@ class RFEFClient:
         self,
         calendario_url: str = RFFM_CALENDARIO_URL,
         clubs_url: str = RFFM_CLUBS_URL,
+        acta_url_template: str = RFFM_ACTA_URL_TEMPLATE,
+        ficha_club_url_template: str = RFFM_FICHA_CLUB_URL_TEMPLATE,
+        ficha_equipo_url_template: str = RFFM_FICHA_EQUIPO_URL_TEMPLATE,
+        ficha_jugador_url_template: str = RFFM_FICHA_JUGADOR_URL_TEMPLATE,
         timeout_seconds: float = 12.0,
         verify_ssl: bool = False,
     ) -> None:
         self.calendario_url = calendario_url
         self.clubs_url = clubs_url
+        self.acta_url_template = acta_url_template
+        self.ficha_club_url_template = ficha_club_url_template
+        self.ficha_equipo_url_template = ficha_equipo_url_template
+        self.ficha_jugador_url_template = ficha_jugador_url_template
         self.timeout = timeout_seconds
         # Por defecto verify_ssl=False permite trabajar bajo proxies o certificados intermedios
         self.verify_ssl = verify_ssl
@@ -517,4 +551,377 @@ class RFEFClient:
             raise RFEFClientError(
                 f"No se pudo consultar el listado de clubes en la RFFM: {error}"
             ) from error
+
+    async def get_club_detail(self, codficha: str) -> ClubDetail:
+        """Obtiene la información detallada de un club y sus equipos federados."""
+        url = self.ficha_club_url_template.format(codficha=codficha)
+        params = {"codficha": codficha}
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        }
+
+        try:
+            timeout = max(self.timeout, 25.0)
+            async with httpx.AsyncClient(
+                verify=self.verify_ssl,
+                timeout=timeout,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                page_props = data.get("pageProps", {})
+                club_raw = page_props.get("club", {})
+
+                if not club_raw:
+                    raise RFEFClientError(
+                        f"No se encontró información del club con código {codficha}"
+                    )
+
+                escudo_url = fix_escudo_url(club_raw.get("escudo"))
+
+                # Equipaciones
+                equipaciones_raw = club_raw.get("equipaciones", [])
+                equipaciones: list[ClubEquipacion] = []
+                for eq in equipaciones_raw:
+                    if isinstance(eq, dict):
+                        equipaciones.append(
+                            ClubEquipacion(
+                                camiseta=eq.get("camiseta"),
+                                pantalon=eq.get("pantalon"),
+                                medias=eq.get("medias"),
+                            )
+                        )
+
+                # Equipos del club
+                equipos_raw = club_raw.get("equipos_club", [])
+                equipos: list[ClubEquipo] = []
+                for eq in equipos_raw:
+                    if isinstance(eq, dict):
+                        equipos.append(
+                            ClubEquipo(
+                                codigo_equipo=str(eq.get("codigo_equipo", "")),
+                                nombre_equipo=str(eq.get("nombre_equipo", "")),
+                                categoria=str(eq.get("categoria", "")),
+                                en_competicion=str(eq.get("en_competicion", "1")),
+                            )
+                        )
+
+                return ClubDetail(
+                    codigo=str(club_raw.get("codigo", codficha)),
+                    nombre_club=str(club_raw.get("nombre_club", "")),
+                    escudo=escudo_url,
+                    delegacion=club_raw.get("delegacion"),
+                    comarca=club_raw.get("comarca"),
+                    cif=club_raw.get("CIF"),
+                    domicilio=club_raw.get("domicilio"),
+                    localidad=club_raw.get("localidad"),
+                    provincia=club_raw.get("provincia"),
+                    codigo_postal=club_raw.get("codigo_postal"),
+                    portal_web=club_raw.get("portal_web"),
+                    email=club_raw.get("email_correspondencia"),
+                    telefonos=club_raw.get("telefonos"),
+                    presidente=club_raw.get("presidente"),
+                    fecha_fundacion=club_raw.get("fecha_fundacion"),
+                    twitter=club_raw.get("twitter"),
+                    instagram=club_raw.get("instagram"),
+                    facebook=club_raw.get("facebook"),
+                    equipaciones=equipaciones,
+                    equipos=equipos,
+                )
+        except Exception as error:
+            logger.error("Error al obtener ficha de club de la RFFM: %s", error)
+            raise RFEFClientError(
+                f"No se pudo consultar el club {codficha}: {error}"
+            ) from error
+
+    async def get_team_detail(self, codficha: str) -> TeamDetail:
+        """Obtiene la ficha detallada de un equipo, incluyendo cuerpo técnico, plantilla y equipaciones."""
+        url = self.ficha_equipo_url_template.format(codficha=codficha)
+        params = {"codficha": codficha}
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        }
+
+        try:
+            timeout = max(self.timeout, 25.0)
+            async with httpx.AsyncClient(
+                verify=self.verify_ssl,
+                timeout=timeout,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                page_props = data.get("pageProps", {})
+                team_raw = page_props.get("team", {})
+
+                if not team_raw:
+                    raise RFEFClientError(
+                        f"No se encontró información del equipo con código {codficha}"
+                    )
+
+                escudo_url = fix_escudo_url(team_raw.get("escudo_club"))
+
+                # Técnicos
+                tecnicos: list[TeamTecnico] = []
+                for tec in team_raw.get("tecnicos_equipo", []):
+                    if isinstance(tec, dict):
+                        tecnicos.append(
+                            TeamTecnico(
+                                cod_tecnico=str(tec.get("cod_tecnico", "")),
+                                nombre=str(tec.get("nombre", "")),
+                            )
+                        )
+
+                # Jugadores
+                jugadores: list[TeamJugador] = []
+                for jug in team_raw.get("jugadores_equipo", []):
+                    if isinstance(jug, dict):
+                        jugadores.append(
+                            TeamJugador(
+                                cod_jugador=str(jug.get("cod_jugador", "")),
+                                nombre=str(jug.get("nombre", "")),
+                            )
+                        )
+
+                # Delegados
+                delegados: list[TeamDelegado] = []
+                for deleg in team_raw.get("delegados_equipo", []):
+                    if isinstance(deleg, dict):
+                        delegados.append(
+                            TeamDelegado(
+                                cod_delegado=(
+                                    str(deleg.get("cod_delegado"))
+                                    if deleg.get("cod_delegado") is not None
+                                    else None
+                                ),
+                                nombre=str(deleg.get("nombre", "")),
+                            )
+                        )
+
+                # Equipaciones
+                equipaciones: list[ClubEquipacion] = []
+                for eq in team_raw.get("equipaciones", []):
+                    if isinstance(eq, dict):
+                        equipaciones.append(
+                            ClubEquipacion(
+                                camiseta=eq.get("camiseta"),
+                                pantalon=eq.get("pantalon"),
+                                medias=eq.get("medias"),
+                            )
+                        )
+
+                return TeamDetail(
+                    codigo_equipo=str(team_raw.get("codigo_equipo", codficha)),
+                    codigo_club=str(team_raw.get("codigo_club", "")),
+                    nombre_equipo=str(team_raw.get("nombre_equipo", "")),
+                    nombre_club=str(team_raw.get("nombre_club", "")),
+                    escudo_club=escudo_url,
+                    categoria=str(team_raw.get("categoria", "")),
+                    codigo_categoria=(
+                        str(team_raw.get("codigo_categoria"))
+                        if team_raw.get("codigo_categoria") is not None
+                        else None
+                    ),
+                    campo=team_raw.get("campo"),
+                    codigo_campo=(
+                        str(team_raw.get("codigo_campo"))
+                        if team_raw.get("codigo_campo") is not None
+                        else None
+                    ),
+                    portal_web=team_raw.get("portal_web"),
+                    email=team_raw.get("email_correspondencia"),
+                    telefonos=team_raw.get("telefonos"),
+                    domicilio=team_raw.get("domicilio_correspondencia"),
+                    localidad=team_raw.get("localidad_correspondencia"),
+                    provincia=team_raw.get("provincia_correspondencia"),
+                    codigo_postal=team_raw.get("codigo_postal_correspondencia"),
+                    tecnicos=tecnicos,
+                    jugadores=jugadores,
+                    delegados=delegados,
+                    equipaciones=equipaciones,
+                )
+        except Exception as error:
+            logger.error("Error al obtener ficha de equipo de la RFFM: %s", error)
+            raise RFEFClientError(
+                f"No se pudo consultar el equipo {codficha}: {error}"
+            ) from error
+
+    async def get_player_detail(
+        self, codjugador: str, temporada: Optional[str] = None
+    ) -> PlayerDetail:
+        """Obtiene la ficha oficial detallada de un jugador en la RFFM para una temporada."""
+        url = self.ficha_jugador_url_template.format(codjugador=codjugador)
+        params: dict[str, str] = {"codjugador": codjugador}
+        if temporada and temporada.strip():
+            params["temporada"] = temporada.strip()
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        }
+
+        try:
+            timeout = max(self.timeout, 25.0)
+            async with httpx.AsyncClient(
+                verify=self.verify_ssl,
+                timeout=timeout,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                page_props = data.get("pageProps", {})
+                p_raw = page_props.get("player", {})
+
+                if not p_raw:
+                    raise RFEFClientError(
+                        f"No se encontró información del jugador con código {codjugador}"
+                    )
+
+                escudo_url = fix_escudo_url(p_raw.get("escudo_equipo"))
+                foto_url = fix_escudo_url(p_raw.get("foto"))
+
+                # Temporadas
+                temporadas_list: list[PlayerTemporada] = []
+                for temp in p_raw.get("listado_temporadas", []):
+                    if isinstance(temp, dict):
+                        temporadas_list.append(
+                            PlayerTemporada(
+                                nombre_temporada=str(temp.get("nombre_temporada", "")),
+                                codigo_temporada=str(temp.get("codigo_temporada", "")),
+                            )
+                        )
+
+                # Competiciones
+                competiciones_list: list[PlayerCompeticion] = []
+                for comp in p_raw.get("competiciones_participa", []):
+                    if isinstance(comp, dict):
+                        competiciones_list.append(
+                            PlayerCompeticion(
+                                nombre_competicion=str(comp.get("nombre_competicion", "")),
+                                codigo_competicion=str(comp.get("codigo_competicion", "")),
+                                nombre_grupo=comp.get("nombre_grupo"),
+                                codgrupo=(
+                                    str(comp.get("codgrupo"))
+                                    if comp.get("codgrupo") is not None
+                                    else None
+                                ),
+                                codequipo=(
+                                    str(comp.get("codequipo"))
+                                    if comp.get("codequipo") is not None
+                                    else None
+                                ),
+                                nombre_equipo=comp.get("nombre_equipo"),
+                                nombre_club=comp.get("nombre_club"),
+                                posicion_equipo=(
+                                    str(comp.get("posicion_equipo"))
+                                    if comp.get("posicion_equipo") is not None
+                                    else None
+                                ),
+                                puntos_equipo=(
+                                    str(comp.get("puntos_equipo"))
+                                    if comp.get("puntos_equipo") is not None
+                                    else None
+                                ),
+                                escudo_equipo=fix_escudo_url(comp.get("escudo_equipo")),
+                            )
+                        )
+
+                # Partidos
+                partidos_list: list[PlayerStat] = []
+                for part in p_raw.get("partidos", []):
+                    if isinstance(part, dict):
+                        partidos_list.append(
+                            PlayerStat(
+                                nombre=str(part.get("nombre", "")),
+                                valor=str(part.get("valor", "0")),
+                            )
+                        )
+
+                # Tarjetas
+                tarjetas_list: list[PlayerStat] = []
+                for tarj in p_raw.get("tarjetas", []):
+                    if isinstance(tarj, dict):
+                        tarjetas_list.append(
+                            PlayerStat(
+                                nombre=str(tarj.get("nombre", "")),
+                                valor=str(tarj.get("valor", "0")),
+                                codigo_tipo_tarjeta=(
+                                    str(tarj.get("codigo_tipo_tarjeta"))
+                                    if tarj.get("codigo_tipo_tarjeta") is not None
+                                    else None
+                                ),
+                            )
+                        )
+
+                return PlayerDetail(
+                    codigo_jugador=str(p_raw.get("codigo_jugador", codjugador)),
+                    nombre_jugador=str(p_raw.get("nombre_jugador", "")),
+                    edad=str(p_raw.get("edad")) if p_raw.get("edad") is not None else None,
+                    anio_nacimiento=(
+                        str(p_raw.get("anio_nacimiento"))
+                        if p_raw.get("anio_nacimiento") is not None
+                        else None
+                    ),
+                    equipo=p_raw.get("equipo"),
+                    codigo_equipo=(
+                        str(p_raw.get("codigo_equipo"))
+                        if p_raw.get("codigo_equipo") is not None
+                        else None
+                    ),
+                    escudo_equipo=escudo_url,
+                    foto=foto_url,
+                    categoria_equipo=p_raw.get("categoria_equipo"),
+                    codigo_temporada=(
+                        str(p_raw.get("codigo_temporada"))
+                        if p_raw.get("codigo_temporada") is not None
+                        else None
+                    ),
+                    nombre_temporada=p_raw.get("nombre_temporada"),
+                    dorsal_jugador=(
+                        str(p_raw.get("dorsal_jugador"))
+                        if p_raw.get("dorsal_jugador") is not None
+                        else None
+                    ),
+                    posicion_jugador=(
+                        p_raw.get("posicion_jugador")
+                        or ("Portero" if str(p_raw.get("es_portero")) == "1" else None)
+                    ),
+                    minutos_totales_jugados=(
+                        str(p_raw.get("minutos_totales_jugados"))
+                        if p_raw.get("minutos_totales_jugados") is not None
+                        else None
+                    ),
+                    media_minutos_totales_jugados=(
+                        str(p_raw.get("media_minutos_totales_jugados"))
+                        if p_raw.get("media_minutos_totales_jugados") is not None
+                        else None
+                    ),
+                    es_portero=str(p_raw.get("es_portero", "0")),
+                    listado_temporadas=temporadas_list,
+                    competiciones_participa=competiciones_list,
+                    partidos=partidos_list,
+                    tarjetas=tarjetas_list,
+                )
+        except Exception as error:
+            logger.error("Error al obtener ficha de jugador de la RFFM: %s", error)
+            raise RFEFClientError(
+                f"No se pudo consultar el jugador {codjugador}: {error}"
+            ) from error
+
 

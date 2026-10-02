@@ -316,3 +316,159 @@ class ClubsResponse(BaseModel):
     pagination: ClubsPagination = Field(..., description="Información de paginación")
     clubs: list[Club] = Field(default_factory=list, description="Listado de clubes de la página")
 
+
+class ClubEquipo(BaseModel):
+    """Modelo para representar un equipo perteneciente a un club federado."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_equipo: str = Field(..., description="Código identificador del equipo")
+    nombre_equipo: str = Field(..., description="Nombre del equipo")
+    categoria: str = Field(..., description="Categoría en la que compite")
+    en_competicion: Optional[str] = Field(default="1", description="Estado de competición (1 o 0)")
+
+
+class ClubEquipacion(BaseModel):
+    """Modelo para representar los colores de la equipación del club."""
+    model_config = ConfigDict(frozen=True)
+
+    camiseta: Optional[str] = Field(default=None, description="Color de la camiseta")
+    pantalon: Optional[str] = Field(default=None, description="Color del pantalón")
+    medias: Optional[str] = Field(default=None, description="Color de las medias")
+
+
+class ClubDetail(BaseModel):
+    """Modelo con la información detallada de un club y sus equipos."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo: str = Field(..., description="Código identificador del club")
+    nombre_club: str = Field(..., description="Nombre oficial del club")
+    escudo: Optional[str] = Field(default=None, description="URL completa del escudo")
+    delegacion: Optional[str] = Field(default=None, description="Delegación a la que pertenece")
+    comarca: Optional[str] = Field(default=None, description="Comarca")
+    cif: Optional[str] = Field(default=None, description="CIF fiscal del club")
+    domicilio: Optional[str] = Field(default=None, description="Dirección del club")
+    localidad: Optional[str] = Field(default=None, description="Localidad")
+    provincia: Optional[str] = Field(default=None, description="Provincia")
+    codigo_postal: Optional[str] = Field(default=None, description="Código postal")
+    portal_web: Optional[str] = Field(default=None, description="Sitio web oficial")
+    email: Optional[str] = Field(default=None, description="Correo electrónico oficial")
+    telefonos: Optional[str] = Field(default=None, description="Teléfonos de contacto")
+    presidente: Optional[str] = Field(default=None, description="Nombre del presidente")
+    fecha_fundacion: Optional[str] = Field(default=None, description="Fecha de fundación")
+    twitter: Optional[str] = Field(default=None, description="Cuenta o usuario de Twitter/X")
+    instagram: Optional[str] = Field(default=None, description="Cuenta o usuario de Instagram")
+    facebook: Optional[str] = Field(default=None, description="Cuenta o usuario de Facebook")
+    equipaciones: list[ClubEquipacion] = Field(default_factory=list, description="Colores de equipaciones")
+    equipos: list[ClubEquipo] = Field(default_factory=list, description="Listado de equipos del club")
+
+
+class TeamJugador(BaseModel):
+    """Modelo para representar a un jugador federado en la plantilla del equipo."""
+    model_config = ConfigDict(frozen=True)
+
+    cod_jugador: str = Field(..., description="Código de ficha del jugador")
+    nombre: str = Field(..., description="Nombre completo del jugador")
+
+
+class TeamTecnico(BaseModel):
+    """Modelo para representar a un técnico del cuerpo técnico."""
+    model_config = ConfigDict(frozen=True)
+
+    cod_tecnico: str = Field(..., description="Código del técnico")
+    nombre: str = Field(..., description="Nombre del técnico o entrenador")
+
+
+class TeamDelegado(BaseModel):
+    """Modelo para representar a un delegado o auxiliar del equipo."""
+    model_config = ConfigDict(frozen=True)
+
+    cod_delegado: Optional[str] = Field(default=None, description="Código del delegado")
+    nombre: str = Field(..., description="Nombre del delegado o auxiliar")
+
+
+class TeamDetail(BaseModel):
+    """Modelo con la información completa de la ficha de un equipo federado."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_equipo: str = Field(..., description="Código identificador del equipo")
+    codigo_club: str = Field(..., description="Código del club al que pertenece")
+    nombre_equipo: str = Field(..., description="Nombre del equipo")
+    nombre_club: str = Field(..., description="Nombre del club")
+    escudo_club: Optional[str] = Field(default=None, description="URL del escudo del club")
+    categoria: str = Field(..., description="Categoría oficial en la que compite")
+    codigo_categoria: Optional[str] = Field(default=None, description="Código de la categoría")
+    campo: Optional[str] = Field(default=None, description="Nombre del terreno de juego")
+    codigo_campo: Optional[str] = Field(default=None, description="Código del terreno de juego")
+    portal_web: Optional[str] = Field(default=None, description="Página web")
+    email: Optional[str] = Field(default=None, description="Correo electrónico de contacto")
+    telefonos: Optional[str] = Field(default=None, description="Teléfonos de contacto")
+    domicilio: Optional[str] = Field(default=None, description="Dirección")
+    localidad: Optional[str] = Field(default=None, description="Localidad")
+    provincia: Optional[str] = Field(default=None, description="Provincia")
+    codigo_postal: Optional[str] = Field(default=None, description="Código postal")
+    tecnicos: list[TeamTecnico] = Field(default_factory=list, description="Cuerpo técnico")
+    jugadores: list[TeamJugador] = Field(default_factory=list, description="Plantilla de jugadores")
+    delegados: list[TeamDelegado] = Field(default_factory=list, description="Delegados y auxiliares")
+    equipaciones: list[ClubEquipacion] = Field(default_factory=list, description="Colores de equipaciones")
+
+
+class PlayerStat(BaseModel):
+    """Estadística de partidos o tarjetas del jugador."""
+    model_config = ConfigDict(frozen=True)
+
+    nombre: str = Field(..., description="Nombre del concepto estadístico")
+    valor: str = Field(..., description="Valor numérico o media")
+    codigo_tipo_tarjeta: Optional[str] = Field(default=None, description="Código de tarjeta si aplica")
+
+
+class PlayerTemporada(BaseModel):
+    """Temporada registrada del jugador."""
+    model_config = ConfigDict(frozen=True)
+
+    nombre_temporada: str = Field(..., description="Nombre de la temporada (ej. 2026-2027)")
+    codigo_temporada: str = Field(..., description="Código de temporada")
+
+
+class PlayerCompeticion(BaseModel):
+    """Competición en la que participa el jugador con su equipo."""
+    model_config = ConfigDict(frozen=True)
+
+    nombre_competicion: str = Field(..., description="Nombre de la competición")
+    codigo_competicion: str = Field(..., description="Código de la competición")
+    nombre_grupo: Optional[str] = Field(default=None, description="Nombre del grupo")
+    codgrupo: Optional[str] = Field(default=None, description="Código del grupo")
+    codequipo: Optional[str] = Field(default=None, description="Código del equipo")
+    nombre_equipo: Optional[str] = Field(default=None, description="Nombre del equipo")
+    nombre_club: Optional[str] = Field(default=None, description="Nombre del club")
+    posicion_equipo: Optional[str] = Field(default=None, description="Posición en la clasificación")
+    puntos_equipo: Optional[str] = Field(default=None, description="Puntos del equipo")
+    escudo_equipo: Optional[str] = Field(default=None, description="URL del escudo del equipo")
+
+
+class PlayerDetail(BaseModel):
+    """Modelo con la información oficial completa de la ficha de un jugador."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_jugador: str = Field(..., description="Código identificador del jugador")
+    nombre_jugador: str = Field(..., description="Nombre y apellidos del jugador")
+    edad: Optional[str] = Field(default=None, description="Edad")
+    anio_nacimiento: Optional[str] = Field(default=None, description="Año de nacimiento")
+    equipo: Optional[str] = Field(default=None, description="Nombre del equipo")
+    codigo_equipo: Optional[str] = Field(default=None, description="Código del equipo")
+    escudo_equipo: Optional[str] = Field(default=None, description="URL del escudo del equipo o club")
+    foto: Optional[str] = Field(default=None, description="Foto del jugador")
+    categoria_equipo: Optional[str] = Field(default=None, description="Categoría en la que compite")
+    codigo_temporada: Optional[str] = Field(default=None, description="Código de la temporada actual")
+    nombre_temporada: Optional[str] = Field(default=None, description="Nombre de la temporada actual")
+    dorsal_jugador: Optional[str] = Field(default=None, description="Número de dorsal")
+    posicion_jugador: Optional[str] = Field(default=None, description="Demarcación o posición")
+    minutos_totales_jugados: Optional[str] = Field(default=None, description="Total de minutos jugados")
+    media_minutos_totales_jugados: Optional[str] = Field(default=None, description="Media de minutos por partido")
+    es_portero: Optional[str] = Field(default="0", description="Indicador si es guardameta")
+    listado_temporadas: list[PlayerTemporada] = Field(default_factory=list, description="Temporadas en RFFM")
+    competiciones_participa: list[PlayerCompeticion] = Field(default_factory=list, description="Competiciones activas")
+    partidos: list[PlayerStat] = Field(default_factory=list, description="Estadísticas de partidos")
+    tarjetas: list[PlayerStat] = Field(default_factory=list, description="Estadísticas disciplinarias")
+
+
+

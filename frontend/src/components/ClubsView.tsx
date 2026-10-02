@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Club, ClubsPagination } from '../types';
-import { fetchClubs } from '../services/api';
+import { Club, ClubsPagination, ClubDetail } from '../types';
+import { fetchClubs, fetchClubDetail } from '../services/api';
+import { ClubDetailModal } from './ClubDetailModal';
 import {
   Shield,
   MapPin,
@@ -26,6 +27,33 @@ export const ClubsView: React.FC = () => {
   // Estados para búsqueda por servidor
   const [searchInput, setSearchInput] = useState<string>('');
   const [activeSearch, setActiveSearch] = useState<string>('');
+
+  // Estados para el modal de detalle del club
+  const [selectedClubCode, setSelectedClubCode] = useState<string | null>(null);
+  const [clubDetail, setClubDetail] = useState<ClubDetail | null>(null);
+  const [isClubDetailLoading, setIsClubDetailLoading] = useState<boolean>(false);
+  const [clubDetailError, setClubDetailError] = useState<string | null>(null);
+
+  const handleOpenClubDetail = async (codigoClub: string) => {
+    setSelectedClubCode(codigoClub);
+    setIsClubDetailLoading(true);
+    setClubDetailError(null);
+    try {
+      const detail = await fetchClubDetail(codigoClub);
+      setClubDetail(detail);
+    } catch (err) {
+      console.error('Error al cargar detalle del club:', err);
+      setClubDetailError('No se pudo obtener la ficha detallada del club desde la RFFM.');
+    } finally {
+      setIsClubDetailLoading(false);
+    }
+  };
+
+  const handleCloseClubDetail = () => {
+    setSelectedClubCode(null);
+    setClubDetail(null);
+    setClubDetailError(null);
+  };
 
   // Efecto principal declarativo: carga datos cuando cambia la página o la búsqueda activa
   useEffect(() => {
@@ -283,7 +311,9 @@ export const ClubsView: React.FC = () => {
           {clubs.map((club) => (
             <div
               key={club.codigo_club}
-              className="bg-slate-900/80 hover:bg-slate-850/90 border border-slate-800/80 hover:border-blue-500/30 rounded-2xl p-3.5 flex items-center gap-3.5 transition-all shadow-md group"
+              onClick={() => handleOpenClubDetail(club.codigo_club)}
+              className="bg-slate-900/80 hover:bg-slate-850/90 border border-slate-800/80 hover:border-blue-500/50 rounded-2xl p-3.5 flex items-center gap-3.5 transition-all shadow-md group cursor-pointer hover:shadow-blue-900/10 active:scale-[0.99]"
+              title="Pulsar para ver ficha y equipos del club"
             >
               {/* Escudo del Club */}
               <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 overflow-hidden shadow-inner group-hover:border-blue-500/40 transition-colors">
@@ -328,6 +358,11 @@ export const ClubsView: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Indicador de acción */}
+              <div className="shrink-0 p-1.5 rounded-xl bg-slate-950/40 border border-slate-800/60 text-slate-500 group-hover:text-blue-400 group-hover:border-blue-500/40 group-hover:bg-blue-500/10 transition-all">
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </div>
             </div>
           ))}
         </div>
@@ -359,6 +394,16 @@ export const ClubsView: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Modal con la ficha detallada y listado de equipos federados */}
+      <ClubDetailModal
+        isOpen={Boolean(selectedClubCode)}
+        onClose={handleCloseClubDetail}
+        clubDetail={clubDetail}
+        isLoading={isClubDetailLoading}
+        error={clubDetailError}
+        onRetry={selectedClubCode ? () => handleOpenClubDetail(selectedClubCode) : undefined}
+      />
     </div>
   );
 };
