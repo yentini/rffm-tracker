@@ -5,6 +5,7 @@ import { CalendarSlider } from './components/CalendarSlider';
 import { MatchDetailModal } from './components/MatchDetailModal';
 import { BottomNav } from './components/BottomNav';
 import { FavoritesView } from './components/FavoritesView';
+import { ClubsView } from './components/ClubsView';
 import {
   fetchActaPartido,
   fetchCalendario,
@@ -410,6 +411,10 @@ export function App() {
                 <span>Refrescar Calendario Completo</span>
               </button>
             </>
+          )}
+
+          {activeTab === 'clubes' && (
+            <ClubsView />
           )}
 
           {activeTab === 'favoritos' && (

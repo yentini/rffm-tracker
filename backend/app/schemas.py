@@ -284,3 +284,35 @@ class ActaResponse(BaseModel):
     codacta: str = Field(..., description="Código del acta consultada")
     game: ActaPartido = Field(..., description="Detalles del partido extraídos de pageProps.game")
 
+
+class Club(BaseModel):
+    """Modelo para representar un club federado de la RFFM."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_club: str = Field(..., description="Código identificador del club")
+    nombre: str = Field(..., description="Nombre oficial del club")
+    clave_acceso: Optional[str] = Field(default=None, description="Clave de acceso")
+    escudo: Optional[str] = Field(default=None, description="URL normalizada del escudo")
+    localidad: Optional[str] = Field(default=None, description="Localidad del club")
+    provincia: Optional[str] = Field(default=None, description="Provincia")
+    total_equipos: Optional[str] = Field(default=None, description="Número total de equipos federados")
+
+
+class ClubsPagination(BaseModel):
+    """Metadatos de paginación del listado de clubes."""
+    model_config = ConfigDict(frozen=True)
+
+    pagina_actual: int = Field(..., description="Página actual")
+    total_paginas: int = Field(..., description="Total de páginas disponibles")
+    total_registros: int = Field(..., description="Total de clubes registrados")
+    pagina_anterior: Optional[int] = Field(default=None, description="Página anterior")
+    pagina_siguiente: Optional[int] = Field(default=None, description="Página siguiente")
+
+
+class ClubsResponse(BaseModel):
+    """Respuesta paginada de clubes de la RFFM."""
+    model_config = ConfigDict(frozen=True)
+
+    pagination: ClubsPagination = Field(..., description="Información de paginación")
+    clubs: list[Club] = Field(default_factory=list, description="Listado de clubes de la página")
+

@@ -212,6 +212,46 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(len(data["game"]["goles_equipo_local"]), 1)
         self.assertEqual(data["game"]["goles_equipo_local"][0]["minuto"], "46")
 
+    @patch("app.main.rfef_client.get_clubs", new_callable=AsyncMock)
+    def test_get_clubs_returns_paginated_list(self, mock_get_clubs):
+        # Arrange
+        from app.schemas import Club, ClubsPagination, ClubsResponse
+        mock_get_clubs.return_value = ClubsResponse(
+            pagination=ClubsPagination(
+                pagina_actual=1,
+                total_paginas=38,
+                total_registros=741,
+                pagina_anterior=None,
+                pagina_siguiente=2,
+            ),
+            clubs=[
+                Club(
+                    codigo_club="40017",
+                    nombre="REAL MADRID C.F.",
+                    clave_acceso="1001",
+                    escudo="https://appweb.rffm.es/pnfg/pimg/Clubes/00100_0011704853_REAL_MADRID.PNG",
+                    localidad="Madrid",
+                    provincia="Madrid",
+                    total_equipos="22",
+                ),
+            ],
+        )
+
+        # Act
+        response = self.client.get("/api/clubs?p=1")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["pagination"]["pagina_actual"], 1)
+        self.assertEqual(data["pagination"]["total_paginas"], 38)
+        self.assertEqual(data["pagination"]["total_registros"], 741)
+        self.assertEqual(data["pagination"]["pagina_siguiente"], 2)
+        self.assertIsNone(data["pagination"]["pagina_anterior"])
+        self.assertEqual(len(data["clubs"]), 1)
+        self.assertEqual(data["clubs"][0]["nombre"], "REAL MADRID C.F.")
+        self.assertEqual(data["clubs"][0]["codigo_club"], "40017")
+
 
 if __name__ == "__main__":
     unittest.main()

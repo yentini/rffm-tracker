@@ -220,3 +220,27 @@ export interface FavoriteTeam {
   savedAt: number;
 }
 
+export interface Club {
+  codigo_club: string;
+  nombre: string;
+  clave_acceso?: string | null;
+  escudo?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  total_equipos?: string | null;
+}
+
+export interface ClubsPagination {
+  pagina_actual: number;
+  total_paginas: number;
+  total_registros: number;
+  pagina_anterior?: number | null;
+  pagina_siguiente?: number | null;
+}
+
+export interface ClubsResponse {
+  pagination: ClubsPagination;
+  clubs: Club[];
+}
+
+

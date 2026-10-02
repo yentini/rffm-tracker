@@ -2,6 +2,7 @@ import {
   ActaPartido,
   ActaResponse,
   CalendarioResponse,
+  ClubsResponse,
   Competition,
   CompetitionsResponse,
   GameType,
@@ -304,6 +305,53 @@ export async function fetchActaPartido(
       }
     } catch {
       // Ignorar fallback secundario
+    }
+    throw error;
+  }
+}
+
+/**
+ * Consulta el listado oficial y paginado de clubes de la RFFM.
+ */
+export async function fetchClubs(page: number = 1): Promise<ClubsResponse> {
+  const url = new URL(`${BASE_URL}/api/clubs`);
+  url.searchParams.set('p', page.toString());
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.warn('[API Client] Error al obtener clubes vía backend, probando directo de RFFM:', error);
+    try {
+      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/clubes.json?p=${page}`;
+      const directRes = await fetch(directUrl);
+      if (directRes.ok) {
+        const directData = await directRes.json();
+        const clubsRaw = directData?.pageProps?.clubs || {};
+        return {
+          pagination: {
+            pagina_actual: parseInt(clubsRaw.pagina_actual || page.toString(), 10),
+            total_paginas: parseInt(clubsRaw.total_paginas || '1', 10),
+            total_registros: parseInt(clubsRaw.total_registros || '0', 10),
+            pagina_anterior: clubsRaw.pagina_anterior ? parseInt(clubsRaw.pagina_anterior, 10) : null,
+            pagina_siguiente: clubsRaw.pagina_siguiente ? parseInt(clubsRaw.pagina_siguiente, 10) : null,
+          },
+          clubs: (clubsRaw.clubes || []).map((c: any) => ({
+            codigo_club: String(c.codigo_club || ''),
+            nombre: String(c.nombre || ''),
+            clave_acceso: c.clave_acceso,
+            escudo: c.escudo?.startsWith('http') ? c.escudo : c.escudo ? `https://appweb.rffm.es${c.escudo.startsWith('/') ? '' : '/'}${c.escudo}` : null,
+            localidad: c.localidad,
+            provincia: c.provincia,
+            total_equipos: c.total_equipos != null ? String(c.total_equipos) : null,
+          })),
+        };
+      }
+    } catch {
+      // Ignorar fallback
     }
     throw error;
   }

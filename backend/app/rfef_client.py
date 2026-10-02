@@ -9,6 +9,9 @@ import httpx
 from app.schemas import (
     ActaPartido,
     CalendarioResponse,
+    Club,
+    ClubsPagination,
+    ClubsResponse,
     Competition,
     EstadoPartido,
     Equipo,
@@ -25,6 +28,11 @@ logger = logging.getLogger(__name__)
 RFFM_CALENDARIO_URL = os.getenv(
     "RFFM_CALENDARIO_URL",
     "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/calendario.json",
+)
+
+RFFM_CLUBS_URL = os.getenv(
+    "RFFM_CLUBS_URL",
+    "https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/clubes.json",
 )
 
 RFFM_COMPETITIONS_URL = os.getenv(
@@ -66,10 +74,12 @@ class RFEFClient:
     def __init__(
         self,
         calendario_url: str = RFFM_CALENDARIO_URL,
+        clubs_url: str = RFFM_CLUBS_URL,
         timeout_seconds: float = 12.0,
         verify_ssl: bool = False,
     ) -> None:
         self.calendario_url = calendario_url
+        self.clubs_url = clubs_url
         self.timeout = timeout_seconds
         # Por defecto verify_ssl=False permite trabajar bajo proxies o certificados intermedios
         self.verify_ssl = verify_ssl
@@ -425,4 +435,76 @@ class RFEFClient:
                 goles_visitante=1,
             )
         ]
+
+    async def get_clubs(self, page: int = 1) -> ClubsResponse:
+        """Obtiene el listado oficial y paginado de clubes de la RFFM."""
+        url = f"{self.clubs_url}?p={page}"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/128.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(
+                verify=self.verify_ssl,
+                timeout=self.timeout,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                page_props = data.get("pageProps", {})
+                clubs_raw = page_props.get("clubs", {})
+
+                def parse_int_safe(val: Any) -> Optional[int]:
+                    if val is None or val == "":
+                        return None
+                    try:
+                        parsed = int(val)
+                        return parsed if parsed > 0 else None
+                    except (ValueError, TypeError):
+                        return None
+
+                pag_actual = int(clubs_raw.get("pagina_actual", page))
+                tot_pags = int(clubs_raw.get("total_paginas", 1))
+                tot_regs = int(clubs_raw.get("total_registros", 0))
+                pag_ant = parse_int_safe(clubs_raw.get("pagina_anterior"))
+                pag_sig = parse_int_safe(clubs_raw.get("pagina_siguiente"))
+
+                pagination = ClubsPagination(
+                    pagina_actual=pag_actual,
+                    total_paginas=tot_pags,
+                    total_registros=tot_regs,
+                    pagina_anterior=pag_ant,
+                    pagina_siguiente=pag_sig,
+                )
+
+                clubes_list: list[Club] = []
+                for item in clubs_raw.get("clubes", []):
+                    clubes_list.append(
+                        Club(
+                            codigo_club=str(item.get("codigo_club", "")),
+                            nombre=str(item.get("nombre", "")),
+                            clave_acceso=item.get("clave_acceso"),
+                            escudo=fix_escudo_url(item.get("escudo")),
+                            localidad=item.get("localidad"),
+                            provincia=item.get("provincia"),
+                            total_equipos=(
+                                str(item.get("total_equipos"))
+                                if item.get("total_equipos") is not None
+                                else None
+                            ),
+                        )
+                    )
+
+                return ClubsResponse(pagination=pagination, clubs=clubes_list)
+        except Exception as error:
+            logger.error("Error al obtener clubes de la RFFM (página %s): %s", page, error)
+            raise RFEFClientError(
+                f"No se pudo consultar el listado de clubes en la RFFM: {error}"
+            ) from error
 

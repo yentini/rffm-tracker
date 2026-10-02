@@ -9,6 +9,7 @@ from app.rfef_client import RFEFClient, RFEFClientError
 from app.schemas import (
     ActaResponse,
     CalendarioResponse,
+    ClubsResponse,
     CompetitionsResponse,
     GameTypesResponse,
     GroupsResponse,
@@ -218,6 +219,26 @@ async def get_partidos(
     """Obtiene el listado de partidos programados o en curso."""
     partidos = await rfef_client.get_partidos_jornada(competicion_id=competicion_id, jornada=jornada)
     return ListaPartidosResponse(total=len(partidos), partidos=partidos)
+
+
+@app.get(
+    "/api/clubs",
+    response_model=ClubsResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Clubes"],
+    summary="Listar clubes federados con paginación",
+)
+async def get_clubs(
+    p: int = Query(default=1, ge=1, description="Número de página a consultar"),
+) -> ClubsResponse:
+    """Obtiene el listado oficial y paginado de clubes registrados en la RFFM."""
+    try:
+        return await rfef_client.get_clubs(page=p)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al sincronizar clubes con RFFM: {exc}",
+        ) from exc
 
 
 if __name__ == "__main__":
