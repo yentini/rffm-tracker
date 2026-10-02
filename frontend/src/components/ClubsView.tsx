@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Club, ClubsPagination } from '../types';
 import { fetchClubs } from '../services/api';
 import {
@@ -21,70 +21,84 @@ export const ClubsView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   // Estados para búsqueda por servidor
   const [searchInput, setSearchInput] = useState<string>('');
   const [activeSearch, setActiveSearch] = useState<string>('');
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadClubsPage = useCallback(async (page: number, search?: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const query = search !== undefined ? search : activeSearch;
-      const response = await fetchClubs(page, query);
-      setClubs(response.clubs);
-      setPagination(response.pagination);
-      setCurrentPage(response.pagination.pagina_actual);
-      // Desplazamiento suave hacia arriba al cambiar de página
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
-      console.error('Error al cargar clubes:', err);
-      setError('No se pudo cargar el listado de clubes desde la RFFM.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeSearch]);
-
-  // Carga inicial
+  // Efecto principal declarativo: carga datos cuando cambia la página o la búsqueda activa
   useEffect(() => {
-    loadClubsPage(1, '');
-  }, [loadClubsPage]);
+    let isCancelled = false;
 
-  // Manejo de cambio en el campo de búsqueda con debouncing automático de 500ms
+    const executeFetch = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetchClubs(currentPage, activeSearch);
+        if (!isCancelled) {
+          setClubs(response.clubs);
+          setPagination(response.pagination);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Error al cargar clubes:', err);
+          setError('No se pudo cargar el listado de clubes desde la RFFM.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    executeFetch();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPage, activeSearch, refreshKey]);
+
+  // Manejo de cambio en el input
   const handleSearchInputChange = (val: string) => {
     setSearchInput(val);
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+    // Si el usuario vacía el texto y había una búsqueda activa, restablecemos el listado
+    if (val.trim() === '' && activeSearch !== '') {
+      setActiveSearch('');
+      setCurrentPage(1);
     }
-
-    debounceTimerRef.current = setTimeout(() => {
-      const trimmed = val.trim();
-      setActiveSearch(trimmed);
-      loadClubsPage(1, trimmed);
-    }, 500);
   };
 
-  // Envío inmediato al presionar Enter en el formulario
+  // Envío de búsqueda al pulsar lupa o Enter
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
     const trimmed = searchInput.trim();
-    setActiveSearch(trimmed);
-    loadClubsPage(1, trimmed);
+    if (!trimmed) {
+      handleClearSearch();
+      return;
+    }
+    if (trimmed === activeSearch) {
+      // Si el término es idéntico, forzamos recarga
+      setRefreshKey((prev) => prev + 1);
+    } else {
+      setActiveSearch(trimmed);
+      setCurrentPage(1);
+    }
   };
 
   // Limpiar búsqueda
   const handleClearSearch = () => {
     setSearchInput('');
-    setActiveSearch('');
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+    if (activeSearch !== '') {
+      setActiveSearch('');
+      setCurrentPage(1);
     }
-    loadClubsPage(1, '');
+  };
+
+  // Cambio de página
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
   };
 
   const totalPages = pagination ? pagination.total_paginas : 1;
@@ -111,34 +125,41 @@ export const ClubsView: React.FC = () => {
           )}
         </div>
 
-        {/* Buscador oficial conectado a la API de la RFFM */}
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => handleSearchInputChange(e.target.value)}
-            placeholder="Buscar por nombre oficial (ej. Adarve, Real Madrid, Getafe)..."
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-10 pr-20 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-inner"
-          />
-
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        {/* Buscador oficial activado por botón de lupa o tecla Enter */}
+        <form onSubmit={handleSearchSubmit} className="relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
+              placeholder="Escribe el club (ej. Adarve, Majadahonda, Parla)..."
+              className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl pl-10 pr-9 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-inner"
+            />
             {searchInput && (
               <button
                 type="button"
                 onClick={handleClearSearch}
                 title="Limpiar búsqueda"
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-            {isLoading && (
-              <div className="p-1 text-blue-400">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              </div>
-            )}
           </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !searchInput.trim()}
+            title="Buscar en la RFFM"
+            className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white rounded-2xl flex items-center justify-center transition-all shadow-md active:scale-95 shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
+          </button>
         </form>
 
         {/* Indicador de filtro activo */}
@@ -161,7 +182,7 @@ export const ClubsView: React.FC = () => {
           <div className="flex items-center justify-between pt-1 text-xs">
             <div className="flex items-center gap-1">
               <button
-                onClick={() => loadClubsPage(1)}
+                onClick={() => goToPage(1)}
                 disabled={currentPage <= 1 || isLoading}
                 title="Primera página"
                 className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
@@ -169,7 +190,7 @@ export const ClubsView: React.FC = () => {
                 <ChevronsLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => loadClubsPage(currentPage - 1)}
+                onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage <= 1 || isLoading}
                 title="Página anterior"
                 className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
@@ -189,7 +210,7 @@ export const ClubsView: React.FC = () => {
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => loadClubsPage(currentPage + 1)}
+                onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage >= totalPages || isLoading}
                 title="Página siguiente"
                 className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
@@ -197,7 +218,7 @@ export const ClubsView: React.FC = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
-                onClick={() => loadClubsPage(totalPages)}
+                onClick={() => goToPage(totalPages)}
                 disabled={currentPage >= totalPages || isLoading}
                 title="Última página"
                 className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
@@ -214,7 +235,7 @@ export const ClubsView: React.FC = () => {
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-center space-y-2">
           <p className="text-xs text-red-400">{error}</p>
           <button
-            onClick={() => loadClubsPage(currentPage)}
+            onClick={() => setRefreshKey((prev) => prev + 1)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold"
           >
             <RefreshCcw className="w-3.5 h-3.5" />
@@ -316,7 +337,7 @@ export const ClubsView: React.FC = () => {
       {pagination && totalPages > 1 && !isLoading && (
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between text-xs">
           <button
-            onClick={() => loadClubsPage(currentPage - 1)}
+            onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage <= 1}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
           >
@@ -329,7 +350,7 @@ export const ClubsView: React.FC = () => {
           </span>
 
           <button
-            onClick={() => loadClubsPage(currentPage + 1)}
+            onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage >= totalPages}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
           >

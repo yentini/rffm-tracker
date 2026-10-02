@@ -95,3 +95,12 @@ Puedes ejecutar ambos servicios en terminales separadas, o usando un script en l
 3. Framework Preset: `Vite`
 4. Environment Variable: `VITE_API_URL` apuntando a la URL de tu API en Render.
 5. El archivo `vercel.json` ya incluye la regla de rewrites SPA hacia `/index.html`.
+
+---
+
+## 🛡️ Política de Validación Local y Despliegue
+
+> [!IMPORTANT]
+> **Regla de Desarrollo:** Todo cambio debe probarse y validarse primero en entorno local (`http://localhost:3000` y `http://localhost:8000`).
+> **Prohibido desplegar o hacer `git push origin main` a producción sin la confirmación y autorización explícita previa del usuario.**
+
