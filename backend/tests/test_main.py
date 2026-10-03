@@ -453,9 +453,82 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertIn("Error al consultar ficha de jugador en RFFM", response.json()["detail"])
 
+    @patch("app.main.rfef_client.get_build_id", new_callable=AsyncMock)
+    def test_get_rffm_build_id_endpoint(self, mock_get_build_id):
+        # Arrange
+        mock_get_build_id.return_value = "TEST_BUILD_TOKEN_123"
+
+        # Act
+        response = self.client.get("/api/rffm/build-id")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["build_id"], "TEST_BUILD_TOKEN_123")
+        mock_get_build_id.assert_awaited_with(force_refresh=False)
+
+    @patch("app.main.rfef_client.get_build_id", new_callable=AsyncMock)
+    def test_get_rffm_build_id_endpoint_force_refresh(self, mock_get_build_id):
+        # Arrange
+        mock_get_build_id.return_value = "NEW_FORCE_TOKEN"
+
+        # Act
+        response = self.client.get("/api/rffm/build-id?force_refresh=true")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["build_id"], "NEW_FORCE_TOKEN")
+        mock_get_build_id.assert_awaited_with(force_refresh=True)
+
+
+class TestRFEFClientBuildId(unittest.IsolatedAsyncioTestCase):
+    async def test_get_build_id_extracts_from_next_data(self):
+        from app.rfef_client import RFEFClient
+        client = RFEFClient()
+
+        fake_html = '<html><head><script id="__NEXT_DATA__" type="application/json">{"buildId":"DYNAMIC_12345"}</script></head><body></body></html>'
+        
+        with patch("httpx.AsyncClient.get") as mock_get:
+            mock_res = AsyncMock()
+            mock_res.raise_for_status = lambda: None
+            mock_res.text = fake_html
+            mock_get.return_value = mock_res
+
+            bid = await client.get_build_id(force_refresh=True)
+            self.assertEqual(bid, "DYNAMIC_12345")
+            self.assertEqual(client.build_id, "DYNAMIC_12345")
+
+    async def test_get_next_json_auto_refreshes_on_404(self):
+        from app.rfef_client import RFEFClient
+        client = RFEFClient(build_id="OLD_TOKEN")
+
+        with patch.object(client, "get_build_id", new_callable=AsyncMock) as mock_get_bid, \
+             patch("httpx.AsyncClient.get") as mock_http_get:
+            # First call returns old, force refresh returns new
+            mock_get_bid.side_effect = ["OLD_TOKEN", "RECOVERED_NEW_TOKEN"]
+
+            # First HTTP get 404, second HTTP get 200
+            from unittest.mock import MagicMock
+            res_404 = MagicMock()
+            res_404.status_code = 404
+            res_404.raise_for_status.side_effect = Exception("404 Not Found")
+
+            res_200 = MagicMock()
+            res_200.status_code = 200
+            res_200.raise_for_status = MagicMock()
+            res_200.json.return_value = {"pageProps": {"ok": True}}
+
+            mock_http_get.side_effect = [res_404, res_200]
+
+            data = await client._get_next_json("competicion/calendario.json")
+            self.assertEqual(data, {"pageProps": {"ok": True}})
+            self.assertEqual(mock_http_get.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

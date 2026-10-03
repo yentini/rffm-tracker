@@ -9,6 +9,7 @@ from app.rfef_client import RFEFClient, RFEFClientError
 from app.schemas import (
     ActaResponse,
     CalendarioResponse,
+    BuildIdResponse,
     ClubDetail,
     ClubsResponse,
     CompetitionsResponse,
@@ -57,6 +58,24 @@ app.add_middleware(
 async def health_check() -> HealthResponse:
     """Endpoint de comprobación de salud para monitorización en Render."""
     return HealthResponse()
+
+
+@app.get(
+    "/api/rffm/build-id",
+    response_model=BuildIdResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Sistema"],
+    summary="Obtener buildId actual de Next.js en la RFFM",
+)
+async def get_rffm_build_id(
+    force_refresh: bool = Query(
+        default=False,
+        description="Forzar recarga dinámica desde el portal oficial de la RFFM",
+    ),
+) -> BuildIdResponse:
+    """Retorna el buildId vigente de Next.js para peticiones de datos federativos."""
+    build_id = await rfef_client.get_build_id(force_refresh=force_refresh)
+    return BuildIdResponse(build_id=build_id)
 
 
 @app.get(

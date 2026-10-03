@@ -17,9 +17,88 @@ import {
   SeasonsResponse,
   TeamDetail,
   PlayerDetail,
+  BuildIdResponse,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+let cachedRffmBuildId = 'NY30BEAEFulRtBHCLvSa1';
+let buildIdLastFetched = 0;
+
+/**
+ * Obtiene dinámicamente el buildId de Next.js vigente en RFFM.
+ * Primero consulta el backend (/api/rffm/build-id), y si falla realiza auto-descubrimiento desde rffm.es
+ */
+export async function getRffmBuildId(forceRefresh: boolean = false): Promise<string> {
+  const now = Date.now();
+  if (!forceRefresh && cachedRffmBuildId && now - buildIdLastFetched < 3600000) {
+    return cachedRffmBuildId;
+  }
+
+  // 1. Intentar backend oficial
+  try {
+    const res = await fetch(`${BASE_URL}/api/rffm/build-id${forceRefresh ? '?force_refresh=true' : ''}`);
+    if (res.ok) {
+      const data: BuildIdResponse = await res.json();
+      if (data?.build_id) {
+        cachedRffmBuildId = data.build_id.trim();
+        buildIdLastFetched = now;
+        return cachedRffmBuildId;
+      }
+    }
+  } catch (err) {
+    console.warn('[API Client] No se pudo obtener build-id de backend, intentando rffm.es:', err);
+  }
+
+  // 2. Fallback de emergencia: parsing de https://www.rffm.es/
+  try {
+    const htmlRes = await fetch('https://www.rffm.es/');
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+      const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
+      if (nextDataMatch && nextDataMatch[1]) {
+        try {
+          const parsed = JSON.parse(nextDataMatch[1]);
+          if (parsed?.buildId) {
+            cachedRffmBuildId = String(parsed.buildId).trim();
+            buildIdLastFetched = now;
+            return cachedRffmBuildId;
+          }
+        } catch {
+          // continuar con regex de manifest
+        }
+      }
+
+      const manifestMatch = html.match(/\/_next\/static\/([^/]+)\/_buildManifest\.js/);
+      if (manifestMatch && manifestMatch[1]) {
+        cachedRffmBuildId = manifestMatch[1].trim();
+        buildIdLastFetched = now;
+        return cachedRffmBuildId;
+      }
+    }
+  } catch (err) {
+    console.warn('[API Client] Fallo al extraer buildId de https://www.rffm.es/, usando fallback:', err);
+  }
+
+  return cachedRffmBuildId;
+}
+
+/**
+ * Realiza fetch directo a endpoints _next/data de RFFM con auto-reintento y auto-refresh si retorna 404
+ */
+async function fetchRffmNextData(path: string): Promise<Response> {
+  let buildId = await getRffmBuildId();
+  let url = `https://www.rffm.es/_next/data/${buildId}/${path.replace(/^\//, '')}`;
+  let res = await fetch(url);
+
+  if (res.status === 404) {
+    console.warn(`[API Client] 404 detectado en ${url}. Refrescando buildId de RFFM...`);
+    buildId = await getRffmBuildId(true);
+    url = `https://www.rffm.es/_next/data/${buildId}/${path.replace(/^\//, '')}`;
+    res = await fetch(url);
+  }
+  return res;
+}
 
 /**
  * Fallback fixtures en caso de backend desconectado durante desarrollo
@@ -341,8 +420,7 @@ export async function fetchClubs(
     try {
       const qSearch = search && search.trim() ? encodeURIComponent(search.trim()) : '';
       const qCod = codclub && codclub.trim() ? encodeURIComponent(codclub.trim()) : '';
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/competicion/clubes.json?p=${page}&search=${qSearch}&codclub=${qCod}`;
-      const directRes = await fetch(directUrl);
+      const directRes = await fetchRffmNextData(`competicion/clubes.json?p=${page}&search=${qSearch}&codclub=${qCod}`);
       if (directRes.ok) {
         const directData = await directRes.json();
         const clubsRaw = directData?.pageProps?.clubs || {};
@@ -384,8 +462,7 @@ export async function fetchClubDetail(codficha: string): Promise<ClubDetail> {
   } catch (error) {
     console.warn('[API Client] Error al obtener ficha de club vía backend, probando directo de RFFM:', error);
     try {
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichaclub/${encodeURIComponent(codficha)}.json?codficha=${encodeURIComponent(codficha)}`;
-      const directRes = await fetch(directUrl);
+      const directRes = await fetchRffmNextData(`fichaclub/${encodeURIComponent(codficha)}.json?codficha=${encodeURIComponent(codficha)}`);
       if (directRes.ok) {
         const directData = await directRes.json();
         const clubRaw = directData?.pageProps?.club || {};
@@ -449,8 +526,7 @@ export async function fetchTeamDetail(codficha: string): Promise<TeamDetail> {
   } catch (error) {
     console.warn('[API Client] Error al obtener ficha de equipo vía backend, probando directo de RFFM:', error);
     try {
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichaequipo/${encodeURIComponent(codficha)}.json?codficha=${encodeURIComponent(codficha)}`;
-      const directRes = await fetch(directUrl);
+      const directRes = await fetchRffmNextData(`fichaequipo/${encodeURIComponent(codficha)}.json?codficha=${encodeURIComponent(codficha)}`);
       if (directRes.ok) {
         const directData = await directRes.json();
         const teamRaw = directData?.pageProps?.team || {};
@@ -525,8 +601,7 @@ export async function fetchPlayerDetail(
     console.warn('[API Client] Error al obtener ficha de jugador vía backend, probando directo de RFFM:', error);
     try {
       const temporadaParam = temporada && temporada.trim() ? `&temporada=${encodeURIComponent(temporada.trim())}` : '';
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/fichajugador/${encodeURIComponent(codjugador)}.json?codjugador=${encodeURIComponent(codjugador)}${temporadaParam}`;
-      const directRes = await fetch(directUrl);
+      const directRes = await fetchRffmNextData(`fichajugador/${encodeURIComponent(codjugador)}.json?codjugador=${encodeURIComponent(codjugador)}${temporadaParam}`);
       if (directRes.ok) {
         const directData = await directRes.json();
         const pRaw = directData?.pageProps?.player || {};

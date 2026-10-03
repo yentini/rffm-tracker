@@ -471,4 +471,11 @@ class PlayerDetail(BaseModel):
     tarjetas: list[PlayerStat] = Field(default_factory=list, description="Estadísticas disciplinarias")
 
 
+class BuildIdResponse(BaseModel):
+    """Modelo para representar el buildId vigente de Next.js en la RFFM."""
+    model_config = ConfigDict(frozen=True)
+
+    build_id: str = Field(..., description="Identificador buildId de Next.js vigente")
+
+
 

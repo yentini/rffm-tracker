@@ -363,3 +363,7 @@ export interface PlayerDetail {
   partidos: PlayerStat[];
   tarjetas: PlayerStat[];
 }
+
+export interface BuildIdResponse {
+  build_id: string;
+}
