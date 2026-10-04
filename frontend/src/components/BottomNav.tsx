@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Trophy, Star, Settings, Shield } from 'lucide-react';
+import { Calendar, Trophy, Star, Shield, MapPin } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: string;
@@ -14,10 +14,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const tabs = [
     { id: 'partidos', label: 'Partidos', icon: Calendar },
-    { id: 'clubes', label: 'Clubes', icon: Shield },
-    { id: 'favoritos', label: 'Favoritos', icon: Star, badge: favoritesCount > 0 ? favoritesCount : null },
     { id: 'clasificacion', label: 'Tablas', icon: Trophy },
-    { id: 'ajustes', label: 'Ajustes', icon: Settings },
+    { id: 'sedes', label: 'Sedes', icon: MapPin },
+    { id: 'favoritos', label: 'Favoritos', icon: Star, badge: favoritesCount > 0 ? favoritesCount : null },
+    { id: 'clubes', label: 'Clubes', icon: Shield },
   ];
 
   return (

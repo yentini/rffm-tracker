@@ -24,6 +24,7 @@ interface CompetitionSelectorProps {
   isCurrentFavorite?: boolean;
   onToggleFavorite?: () => void;
   onOpenSmartSearch?: () => void;
+  onViewClasificacion?: () => void;
 }
 
 export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
@@ -48,6 +49,7 @@ export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
   isCurrentFavorite = false,
   onToggleFavorite,
   onOpenSmartSearch,
+  onViewClasificacion,
 }) => {
 
   return (
@@ -226,46 +228,82 @@ export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
                   <Users2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Grupo / Subgrupo</span>
                 </label>
-                {isLoadingGroups && (
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-400">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>Cargando grupos...</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {selectedGroup && onViewClasificacion && (
+                    <button
+                      type="button"
+                      onClick={onViewClasificacion}
+                      className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 font-semibold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-lg transition-all active:scale-95"
+                      title="Ver clasificación oficial de este grupo"
+                    >
+                      <Trophy className="w-3 h-3 text-amber-400" />
+                      <span>Ver Clasificación</span>
+                    </button>
+                  )}
+                  {isLoadingGroups && (
+                    <div className="flex items-center gap-1 text-[11px] text-emerald-400">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Cargando grupos...</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="relative">
-                <select
-                  id="select-group"
-                  value={selectedGroup}
-                  disabled={isLoadingGroups || groups.length === 0 || !selectedCompetition}
-                  onChange={(e) => onGroupChange(e.target.value)}
-                  className="w-full appearance-none bg-slate-950/80 border border-slate-700/80 text-white text-sm font-medium rounded-2xl px-4 py-3.5 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all cursor-pointer shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoadingGroups ? (
-                    <option value="" disabled>Cargando grupos de la competición...</option>
-                  ) : groups.length === 0 ? (
-                    <option value="" disabled>
-                      {selectedCompetition ? 'No hay grupos configurados' : 'Selecciona primero una competición'}
-                    </option>
-                  ) : (
-                    <>
-                      <option value="" disabled>Selecciona un grupo...</option>
-                      {groups.map((group) => (
-                        <option 
-                          key={group.codigo} 
-                          value={group.codigo}
-                          className="bg-slate-900 text-white"
-                        >
-                          {group.nombre}
-                          {group.total_equipos ? ` (${group.total_equipos} eq` : ''}
-                          {group.total_jornadas ? `, ${group.total_jornadas} jor)` : group.total_equipos ? ')' : ''}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    id="select-group"
+                    value={selectedGroup}
+                    disabled={isLoadingGroups || groups.length === 0 || !selectedCompetition}
+                    onChange={(e) => onGroupChange(e.target.value)}
+                    className="w-full appearance-none bg-slate-950/80 border border-slate-700/80 text-white text-sm font-medium rounded-2xl px-4 py-3.5 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all cursor-pointer shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingGroups ? (
+                      <option value="" disabled>Cargando grupos de la competición...</option>
+                    ) : groups.length === 0 ? (
+                      <option value="" disabled>
+                        {selectedCompetition ? 'No hay grupos configurados' : 'Selecciona primero una competición'}
+                      </option>
+                    ) : (
+                      <>
+                        <option value="" disabled>Selecciona un grupo...</option>
+                        {groups.map((group) => (
+                          <option 
+                            key={group.codigo} 
+                            value={group.codigo}
+                            className="bg-slate-900 text-white"
+                          >
+                            {group.nombre}
+                            {group.total_equipos ? ` (${group.total_equipos} eq` : ''}
+                            {group.total_jornadas ? `, ${group.total_jornadas} jor)` : group.total_equipos ? ')' : ''}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Botón de acceso directo a clasificación del grupo */}
+                {onViewClasificacion && (
+                  <button
+                    type="button"
+                    onClick={onViewClasificacion}
+                    disabled={!selectedGroup}
+                    title={
+                      !selectedGroup
+                        ? 'Selecciona un grupo para ver su clasificación'
+                        : 'Ver tabla de clasificación oficial de este grupo'
+                    }
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center shrink-0 ${
+                      !selectedGroup
+                        ? 'bg-slate-950/40 border-slate-800 text-slate-600 opacity-40 cursor-not-allowed'
+                        : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400 hover:text-amber-300 active:scale-95 shadow-lg shadow-amber-500/10'
+                    }`}
+                  >
+                    <Trophy className="w-5 h-5 text-amber-400" />
+                  </button>
+                )}
               </div>
             </div>
 

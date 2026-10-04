@@ -115,6 +115,7 @@ class PartidoCalendario(BaseModel):
     escudo_equipo_visitante: Optional[str] = Field(default=None, description="URL absoluta del escudo visitante")
     goles_visitante: Optional[str] = Field(default=None, description="Goles marcados por el equipo visitante")
     campo: Optional[str] = Field(default=None, description="Instalación o campo donde se disputa")
+    codigo_campo: Optional[str] = Field(default=None, description="Código de la instalación deportiva")
     fecha: Optional[str] = Field(default=None, description="Fecha programada (DD-MM-YYYY)")
     hora: Optional[str] = Field(default=None, description="Hora programada (HH:MM)")
 
@@ -577,6 +578,70 @@ class SearchTeamsResponse(BaseModel):
 
     total: int = Field(..., description="Total de equipos encontrados")
     teams: list[DeduceTeamResult] = Field(default_factory=list, description="Listado de equipos deducidos")
+
+
+class CampoItem(BaseModel):
+    """Resumen de una instalación o terreno de juego."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo: str = Field(..., description="Código identificador del terreno de juego")
+    nombre: str = Field(..., description="Nombre del campo o instalación")
+    direccion: Optional[str] = Field(default=None, description="Dirección postal")
+    codigo_postal: Optional[str] = Field(default=None, description="Código postal")
+    localidad: Optional[str] = Field(default=None, description="Municipio o localidad")
+    provincia: Optional[str] = Field(default=None, description="Provincia")
+    superficie: Optional[str] = Field(default=None, description="Tipo de superficie (ej. Hierba Artificial)")
+    tipo_campo: Optional[str] = Field(default=None, description="Modalidad (Fútbol 11, Fútbol 7, Fútbol Sala)")
+    club_asociado: Optional[str] = Field(default=None, description="Nombre del club asociado si se dedujo por búsqueda de club")
+
+
+class CamposSearchResponse(BaseModel):
+    """Resultado de búsqueda y listado paginado de terrenos de juego."""
+    model_config = ConfigDict(frozen=True)
+
+    total_registros: int = Field(default=0, description="Total de campos encontrados")
+    total_paginas: int = Field(default=1, description="Total de páginas")
+    pagina_actual: int = Field(default=1, description="Página actual")
+    campos: list[CampoItem] = Field(default_factory=list, description="Listado de terrenos de juego")
+
+
+class PartidoCampo(BaseModel):
+    """Partido programado a disputarse en una instalación deportiva."""
+    model_config = ConfigDict(frozen=True)
+
+    codacta: str = Field(..., description="Código del acta oficial")
+    codgrupo: Optional[str] = Field(default=None, description="Código del grupo")
+    nombre_grupo: Optional[str] = Field(default=None, description="Nombre del grupo")
+    nombre_competicion: Optional[str] = Field(default=None, description="Nombre de la competición o liga")
+    jornada: Optional[str] = Field(default=None, description="Jornada")
+    codequipo_casa: Optional[str] = Field(default=None, description="Código del equipo local")
+    nombre_equipo_casa: str = Field(..., description="Nombre del equipo local")
+    escudo_equipo_casa: Optional[str] = Field(default=None, description="Escudo del equipo local")
+    goles_casa: Optional[str] = Field(default=None, description="Goles del equipo local")
+    codequipo_fuera: Optional[str] = Field(default=None, description="Código del equipo visitante")
+    nombre_equipo_fuera: str = Field(..., description="Nombre del equipo visitante")
+    escudo_equipo_fuera: Optional[str] = Field(default=None, description="Escudo del equipo visitante")
+    goles_fuera: Optional[str] = Field(default=None, description="Goles del equipo visitante")
+    fecha: Optional[str] = Field(default=None, description="Fecha y hora del partido (YYYY-MM-DD HH:MM:SS)")
+
+
+class CampoDetailResponse(BaseModel):
+    """Ficha detallada de una instalación deportiva y su agenda completa de partidos."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_campo: str = Field(..., description="Código oficial del campo")
+    nombre_campo: str = Field(..., description="Nombre de la instalación")
+    direccion: Optional[str] = Field(default=None, description="Dirección postal")
+    localidad: Optional[str] = Field(default=None, description="Municipio")
+    provincia: Optional[str] = Field(default=None, description="Provincia")
+    codigo_postal: Optional[str] = Field(default=None, description="Código postal")
+    telefono_contacto: Optional[str] = Field(default=None, description="Teléfono de contacto")
+    superficie_juego: Optional[str] = Field(default=None, description="Superficie de juego")
+    tipo_campo: Optional[str] = Field(default=None, description="Modalidad deportiva")
+    latitud: Optional[str] = Field(default=None, description="Latitud GPS")
+    longitud: Optional[str] = Field(default=None, description="Longitud GPS")
+    total_partidos: int = Field(default=0, description="Total de partidos en agenda")
+    partidos: list[PartidoCampo] = Field(default_factory=list, description="Partidos programados en la sede")
 
 
 

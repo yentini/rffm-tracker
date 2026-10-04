@@ -9,6 +9,8 @@ from app.rfef_client import RFEFClient, RFEFClientError
 from app.schemas import (
     ActaResponse,
     CalendarioResponse,
+    CampoDetailResponse,
+    CamposSearchResponse,
     BuildIdResponse,
     ClasificacionResponse,
     ClubDetail,
@@ -237,21 +239,27 @@ async def get_clasificacion(
     summary="Detalle completo de acta del partido",
 )
 async def get_acta_partido(
-    temporada: str = Query(..., description="Código de temporada (ej. 22)"),
-    competicion: str = Query(..., description="Código de competición (ej. 26737751)"),
-    grupo: str = Query(..., description="Código de grupo (ej. 26737755)"),
     codacta: str = Query(..., description="Código del acta (ej. 5601649)"),
+    temporada: Optional[str] = Query(None, description="Código opcional de temporada (ej. 22)"),
+    competicion: Optional[str] = Query(None, description="Código opcional de competición"),
+    grupo: Optional[str] = Query(None, description="Código opcional de grupo"),
 ) -> ActaResponse:
     """Obtiene el acta oficial completa de un partido con alineaciones, goles y tarjetas."""
     try:
         acta = await rfef_client.get_acta_partido(
+            codacta=codacta,
             temporada=temporada,
             competicion=competicion,
             grupo=grupo,
-            codacta=codacta,
         )
         return ActaResponse(codacta=codacta, game=acta)
     except RFEFClientError as exc:
+        err_msg = str(exc)
+        if "No se encontraron datos de acta" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El acta arbitral aún no ha sido publicada o validada por el estamento arbitral en la RFFM.",
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al consultar el acta del partido {codacta} desde RFFM: {exc}",
@@ -377,6 +385,47 @@ async def get_player_detail(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al consultar ficha de jugador en RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/campos/search",
+    response_model=CamposSearchResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Instalaciones"],
+    summary="Buscar instalaciones y terrenos de juego de la RFFM",
+)
+async def search_campos(
+    query: Optional[str] = Query(default="", description="Término de búsqueda (nombre, calle o localidad)"),
+    page: int = Query(default=1, ge=1, description="Número de página"),
+) -> CamposSearchResponse:
+    """Busca campos de fútbol e instalaciones deportivas en el catálogo oficial de la RFFM."""
+    try:
+        return await rfef_client.search_campos(query=query or "", page=page)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al buscar instalaciones en la RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/campos/{codigo_campo}",
+    response_model=CampoDetailResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Instalaciones"],
+    summary="Obtener ficha y agenda completa de partidos de una sede deportiva",
+)
+async def get_campo_detail(
+    codigo_campo: str = Path(..., description="Código identificador del terreno de juego en la RFFM"),
+) -> CampoDetailResponse:
+    """Obtiene la información oficial del campo y el listado de partidos programados con sus horarios."""
+    try:
+        return await rfef_client.get_campo_detail(codigo_campo=codigo_campo)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al consultar instalación en la RFFM: {exc}",
         ) from exc
 
 

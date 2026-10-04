@@ -7,6 +7,8 @@ import { BottomNav } from './components/BottomNav';
 import { FavoritesView } from './components/FavoritesView';
 import { ClubsView } from './components/ClubsView';
 import { ClasificacionView } from './components/ClasificacionView';
+import { CamposView } from './components/CamposView';
+import { CampoScheduleModal } from './components/CampoScheduleModal';
 import { SmartTeamSearchModal } from './components/SmartTeamSearchModal';
 import {
   fetchActaPartido,
@@ -36,7 +38,7 @@ import {
   PartidoCalendario,
   Season,
 } from './types';
-import { WifiOff, RefreshCcw, CalendarDays, Settings } from 'lucide-react';
+import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy } from 'lucide-react';
 
 export function App() {
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -73,6 +75,13 @@ export function App() {
   const [isLoadingCalendario, setIsLoadingCalendario] = useState(false);
   const [isOfflineWarning, setIsOfflineWarning] = useState(false);
   const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
+
+  // Estado para el modal contextual de agenda de una instalación deportiva
+  const [selectedCampoForModal, setSelectedCampoForModal] = useState<{
+    codigoCampo?: string | null;
+    nombreCampoFallback?: string | null;
+    selectedDateFilter?: string | null;
+  } | null>(null);
 
   // Manejador para aplicar equipo deducido automáticamente
   const handleSelectDeduceTeam = (deduced: DeduceTeamResult) => {
@@ -345,16 +354,15 @@ export function App() {
     setActaDetail(null);
 
     try {
-      const actaData = await fetchActaPartido(
-        selectedSeason,
-        selectedCompetition,
-        selectedGroup,
-        partido.codacta
-      );
+      // El codacta es único global en toda la federación; no enviamos parámetros de competición
+      // ajenos que podrían invalidar la consulta si el partido pertenece a otra categoría.
+      const actaData = await fetchActaPartido(partido.codacta);
       setActaDetail(actaData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al recuperar acta del partido:', err);
-      setActaError('No se pudo cargar el acta oficial del partido desde la RFFM.');
+      setActaError(
+        err.message || 'El acta arbitral aún no ha sido publicada o validada en la RFFM.'
+      );
     } finally {
       setIsLoadingActa(false);
     }
@@ -404,6 +412,7 @@ export function App() {
                 isCurrentFavorite={isCurrentFavorite}
                 onToggleFavorite={handleToggleFavorite}
                 onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
+                onViewClasificacion={() => setActiveTab('clasificacion')}
               />
 
               {/* Sección 2: Calendario (Horizontal por Jornadas o Vertical por Equipo) */}
@@ -415,11 +424,24 @@ export function App() {
                       {selectedTeam ? 'Partidos del Equipo' : 'Calendario Oficial'}
                     </h3>
                   </div>
-                  {calendario && (
-                    <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-                      {selectedTeam ? 'Vista Continua' : `${calendario.total_jornadas} Jornadas`}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {selectedGroup && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('clasificacion')}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                        title="Ver clasificación oficial de este grupo"
+                      >
+                        <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Clasificación</span>
+                      </button>
+                    )}
+                    {calendario && (
+                      <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
+                        {selectedTeam ? 'Vista Continua' : `${calendario.total_jornadas} Jornadas`}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <CalendarSlider
@@ -428,6 +450,13 @@ export function App() {
                   selectedTeam={selectedTeam}
                   onClearTeam={() => setSelectedTeam('')}
                   onSelectMatch={handleSelectMatch}
+                  onSelectCampo={(codigoCampo, nombreCampo, fecha) =>
+                    setSelectedCampoForModal({
+                      codigoCampo,
+                      nombreCampoFallback: nombreCampo,
+                      selectedDateFilter: fecha,
+                    })
+                  }
                 />
               </div>
 
@@ -441,6 +470,18 @@ export function App() {
                 <span>Refrescar Calendario Completo</span>
               </button>
             </>
+          )}
+
+          {activeTab === 'sedes' && (
+            <CamposView
+              onSelectActa={(codacta) => {
+                handleSelectMatch({
+                  codacta,
+                  equipo_local: 'Local',
+                  equipo_visitante: 'Visitante',
+                } as any);
+              }}
+            />
           )}
 
           {activeTab === 'clubes' && (
@@ -501,6 +542,23 @@ export function App() {
           isLoading={isLoadingActa}
           error={actaError}
         />
+
+        {/* Modal Contextual de Agenda de la Instalación Deportiva (Opción A) */}
+        {selectedCampoForModal && (
+          <CampoScheduleModal
+            codigoCampo={selectedCampoForModal.codigoCampo}
+            nombreCampoFallback={selectedCampoForModal.nombreCampoFallback}
+            selectedDateFilter={selectedCampoForModal.selectedDateFilter}
+            onClose={() => setSelectedCampoForModal(null)}
+            onSelectActa={(codacta) => {
+              handleSelectMatch({
+                codacta,
+                equipo_local: 'Local',
+                equipo_visitante: 'Visitante',
+              } as any);
+            }}
+          />
+        )}
 
         {/* Modal de Búsqueda Inteligente / Deducción de Equipo */}
         <SmartTeamSearchModal

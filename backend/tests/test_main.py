@@ -212,6 +212,19 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(len(data["game"]["goles_equipo_local"]), 1)
         self.assertEqual(data["game"]["goles_equipo_local"][0]["minuto"], "46")
 
+        # Test llamando sólo con codacta
+        response_solo_codacta = self.client.get("/api/acta-partido?codacta=5601640")
+        self.assertEqual(response_solo_codacta.status_code, 200)
+
+    @patch("app.main.rfef_client.get_acta_partido", new_callable=AsyncMock)
+    def test_get_acta_partido_pending_publication_returns_404(self, mock_get_acta):
+        from app.rfef_client import RFEFClientError
+        mock_get_acta.side_effect = RFEFClientError("No se encontraron datos de acta para el partido 999999")
+        response = self.client.get("/api/acta-partido?codacta=999999")
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn("aún no ha sido publicada", data["detail"])
+
     @patch("app.main.rfef_client.get_clubs", new_callable=AsyncMock)
     def test_get_clubs_returns_paginated_list(self, mock_get_clubs):
         # Arrange
@@ -739,6 +752,90 @@ class TestRFEFClientBuildId(unittest.IsolatedAsyncioTestCase):
             # 3. Test "adarve primera" -> should match both 102 (Cadete Primera) and 103 (Infantil Primera)
             results_pri = await client.search_and_deduce_teams("adarve primera")
             self.assertEqual(len(results_pri), 2)
+
+
+class TestCamposAPI(unittest.TestCase):
+    def setUp(self):
+        from fastapi.testclient import TestClient
+        from app.main import app
+        self.client = TestClient(app)
+
+    @patch("app.main.rfef_client.search_campos", new_callable=AsyncMock)
+    def test_search_campos_endpoint_success(self, mock_search):
+        from app.schemas import CamposSearchResponse, CampoItem
+        mock_search.return_value = CamposSearchResponse(
+            total_registros=1,
+            total_paginas=1,
+            pagina_actual=1,
+            campos=[
+                CampoItem(
+                    codigo="203",
+                    nombre="FUNDACION (HA)",
+                    direccion="CALLE BRAOJOS 21",
+                    codigo_postal="28034",
+                    localidad="Madrid",
+                    provincia="Madrid",
+                    superficie="Hierba Artificial",
+                    tipo_campo="Fútbol 11",
+                    club_asociado="A.D. FUNDACION",
+                )
+            ]
+        )
+
+        response = self.client.get("/api/campos/search?query=fundacion")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["total_registros"], 1)
+        self.assertEqual(len(data["campos"]), 1)
+        self.assertEqual(data["campos"][0]["codigo"], "203")
+        self.assertEqual(data["campos"][0]["nombre"], "FUNDACION (HA)")
+        self.assertEqual(data["campos"][0]["club_asociado"], "A.D. FUNDACION")
+
+    @patch("app.main.rfef_client.get_campo_detail", new_callable=AsyncMock)
+    def test_get_campo_detail_endpoint_success(self, mock_detail):
+        from app.schemas import CampoDetailResponse, PartidoCampo
+        mock_detail.return_value = CampoDetailResponse(
+            codigo_campo="203",
+            nombre_campo="FUNDACION (HA)",
+            direccion="CALLE BRAOJOS 21",
+            localidad="Madrid",
+            provincia="Madrid",
+            codigo_postal="28034",
+            telefono_contacto=None,
+            superficie_juego="Hierba Artificial",
+            tipo_campo="Fútbol 11",
+            latitud=None,
+            longitud=None,
+            total_partidos=1,
+            partidos=[
+                PartidoCampo(
+                    codacta="5572246",
+                    codgrupo="26737738",
+                    nombre_grupo="Grupo 1",
+                    nombre_competicion="PRIMERA CADETE",
+                    jornada="1",
+                    codequipo_casa="1422",
+                    nombre_equipo_casa="A.D. FUNDACION 'A'",
+                    escudo_equipo_casa="https://appweb.rffm.es/escudo.png",
+                    goles_casa="1",
+                    codequipo_fuera="298",
+                    nombre_equipo_fuera="C.D. LAS ROZAS 'B'",
+                    escudo_equipo_fuera="https://appweb.rffm.es/escudo2.png",
+                    goles_fuera="4",
+                    fecha="2026-09-26 10:45:00",
+                )
+            ]
+        )
+
+        response = self.client.get("/api/campos/203")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["codigo_campo"], "203")
+        self.assertEqual(data["nombre_campo"], "FUNDACION (HA)")
+        self.assertEqual(data["total_partidos"], 1)
+        self.assertEqual(data["partidos"][0]["hora"], None) if "hora" in data["partidos"][0] else None
+        self.assertEqual(data["partidos"][0]["fecha"], "2026-09-26 10:45:00")
+        self.assertEqual(data["partidos"][0]["nombre_equipo_casa"], "A.D. FUNDACION 'A'")
 
 
 if __name__ == "__main__":

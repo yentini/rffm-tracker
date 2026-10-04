@@ -8,11 +8,15 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
+import unicodedata
 import httpx
 
 from app.schemas import (
     ActaPartido,
     CalendarioResponse,
+    CampoDetailResponse,
+    CampoItem,
+    CamposSearchResponse,
     ClasificacionEquipo,
     ClasificacionResponse,
     Club,
@@ -31,6 +35,7 @@ from app.schemas import (
     JornadaInfo,
     Partido,
     PartidoCalendario,
+    PartidoCampo,
     PlayerCompeticion,
     PlayerDetail,
     PlayerStat,
@@ -72,6 +77,13 @@ def fix_escudo_url(url: Optional[str]) -> Optional[str]:
 
 
 
+def strip_accents(text: str) -> str:
+    """Elimina acentos y signos diacríticos para búsquedas insensibles en la RFFM."""
+    if not text:
+        return ""
+    return "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
+
+
 class RFEFClientError(Exception):
     """Excepción base para errores en el cliente RFEF / RFFM."""
 
@@ -92,6 +104,7 @@ class RFEFClient:
         # Por defecto verify_ssl=False permite trabajar bajo proxies o certificados intermedios
         self.verify_ssl = verify_ssl
         self._cached_page_props: Optional[dict[str, Any]] = None
+        self._club_campos_cache: dict[str, list[Any]] = {}
 
     @property
     def calendario_url(self) -> str:
@@ -440,6 +453,11 @@ class RFEFClient:
                             escudo_equipo_visitante=fix_escudo_url(eq.get("escudo_equipo_visitante")),
                             goles_visitante=eq.get("goles_visitante") if eq.get("goles_visitante") != "" else None,
                             campo=eq.get("campo"),
+                            codigo_campo=(
+                                str(eq.get("codigo_campo"))
+                                if eq.get("codigo_campo") is not None and str(eq.get("codigo_campo")).strip() != ""
+                                else None
+                            ),
                             fecha=eq.get("fecha"),
                             hora=eq.get("hora"),
                         )
@@ -477,12 +495,12 @@ class RFEFClient:
 
     async def get_acta_partido(
         self,
-        temporada: str,
-        competicion: str,
-        grupo: str,
         codacta: str,
+        temporada: Optional[str] = None,
+        competicion: Optional[str] = None,
+        grupo: Optional[str] = None,
     ) -> ActaPartido:
-        """Obtiene el acta y los detalles completos de un partido desde la RFFM."""
+        """Obtiene el acta y los detalles completos de un partido desde la RFFM por su código único de acta."""
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -491,24 +509,40 @@ class RFEFClient:
             ),
             "Accept": "application/json",
         }
-        params = {
-            "temporada": temporada,
-            "competicion": competicion,
-            "grupo": grupo,
-            "codacta": codacta,
-        }
+
+        clean_cod = str(codacta).strip()
+        if not clean_cod:
+            raise RFEFClientError("El código de acta no puede estar vacío.")
 
         try:
+            # 1. En Next.js / RFFM, acta-partido/[codacta].json es canónica por codacta único
             data = await self._get_next_json(
-                f"acta-partido/{codacta}.json",
-                params=params,
+                f"acta-partido/{clean_cod}.json",
                 headers=headers,
+                timeout=max(self.timeout, 20.0),
             )
-            page_props = data.get("pageProps", {})
-            game_data = page_props.get("game", {})
+            page_props = data.get("pageProps", {}) if data else {}
+            game_data = page_props.get("game")
+
+            # 2. Si no viniera y se pasaron parámetros opcionales de grupo, intentar como fallback
+            if not game_data and temporada and competicion and grupo:
+                params = {
+                    "temporada": temporada,
+                    "competicion": competicion,
+                    "grupo": grupo,
+                    "codacta": clean_cod,
+                }
+                data = await self._get_next_json(
+                    f"acta-partido/{clean_cod}.json",
+                    params=params,
+                    headers=headers,
+                    timeout=max(self.timeout, 20.0),
+                )
+                page_props = data.get("pageProps", {}) if data else {}
+                game_data = page_props.get("game")
 
             if not game_data:
-                raise RFEFClientError(f"No se encontraron datos de acta para el partido {codacta}")
+                raise RFEFClientError(f"No se encontraron datos de acta para el partido {clean_cod}")
 
             game_dict = dict(game_data)
             game_dict["escudo_local"] = fix_escudo_url(game_dict.get("escudo_local"))
@@ -518,7 +552,7 @@ class RFEFClient:
         except Exception as error:
             logger.error("Error al obtener acta de la RFFM: %s", error)
             raise RFEFClientError(
-                f"No se pudo consultar el acta {codacta}: {error}"
+                f"No se pudo consultar el acta {clean_cod}: {error}"
             ) from error
 
     async def get_partidos_jornada(
@@ -1396,6 +1430,238 @@ class RFEFClient:
 
         results = await asyncio.gather(*[_deduce_entry(c, eq) for c, eq in candidate_teams])
         return list(results)
+
+    async def _search_campos_by_club_name(self, query: str) -> list[CampoItem]:
+        """Busca clubes coincidentes y deduce las instalaciones o sedes donde disputan partidos sus equipos."""
+        cache_key = query.lower().strip()
+        if cache_key in self._club_campos_cache:
+            return self._club_campos_cache[cache_key]
+
+        results: list[CampoItem] = []
+        try:
+            clubs_res = await self.get_clubs(search=query)
+            no_accents = strip_accents(query)
+            if (not clubs_res or not clubs_res.clubs) and no_accents.lower() != query.lower():
+                clubs_res = await self.get_clubs(search=no_accents)
+
+            if not clubs_res or not clubs_res.clubs:
+                self._club_campos_cache[cache_key] = []
+                return []
+
+            top_clubs = clubs_res.clubs[:2]
+            seen_campos: set[str] = set()
+
+            for club in top_clubs:
+                try:
+                    c_data = await self._get_next_json(f"fichaclub/{club.codigo_club}.json", timeout=10.0)
+                    club_obj = c_data.get("pageProps", {}).get("club", {})
+                    equipos = [
+                        eq for eq in club_obj.get("equipos_club", [])
+                        if eq.get("en_competicion") == "1"
+                    ][:8]
+
+                    async def fetch_team_field(eq: dict[str, Any]):
+                        cod_eq = eq.get("codigo_equipo")
+                        if not cod_eq:
+                            return None, None, None
+                        try:
+                            t_data = await self._get_next_json(f"fichaequipo/{cod_eq}.json", timeout=8.0)
+                            team_obj = t_data.get("pageProps", {}).get("team", {})
+                            return (
+                                team_obj.get("codigo_campo"),
+                                team_obj.get("campo"),
+                                team_obj.get("localidad_correspondencia"),
+                            )
+                        except Exception:
+                            return None, None, None
+
+                    team_fields = await asyncio.gather(*[fetch_team_field(eq) for eq in equipos])
+                    for c_cod, c_nom, loc in team_fields:
+                        if c_cod and str(c_cod) not in seen_campos:
+                            clean_cod = str(c_cod).strip()
+                            seen_campos.add(clean_cod)
+                            results.append(
+                                CampoItem(
+                                    codigo=clean_cod,
+                                    nombre=str(c_nom or f"Campo {clean_cod}").strip(),
+                                    localidad=loc or club.localidad,
+                                    club_asociado=club.nombre,
+                                )
+                            )
+                except Exception as club_err:
+                    logger.debug("Error obteniendo campos para el club %s: %s", club.codigo_club, club_err)
+
+            self._club_campos_cache[cache_key] = results
+            return results
+        except Exception as err:
+            logger.debug("Error general en _search_campos_by_club_name: %s", err)
+            return []
+
+    async def search_campos(self, query: str = "", page: int = 1) -> CamposSearchResponse:
+        """Busca terrenos de juego / instalaciones deportivas en el catálogo oficial de la RFFM.
+        Soporta búsqueda directa por nombre de campo, calle o municipio, y también por nombre de club
+        (asociando las diferentes sedes donde juegan sus equipos federados).
+        """
+        clean_query = query.strip() if query else ""
+        params: dict[str, Any] = {}
+        if clean_query:
+            params["search"] = clean_query
+        if page > 1:
+            params["pagina"] = str(page)
+
+        try:
+            # 1. Petición directa a competicion/terrenosjuego.json
+            data_direct_task = self._get_next_json("competicion/terrenosjuego.json", params=params)
+
+            # 2. Si estamos en la página 1 y hay búsqueda, consultar simultáneamente por club
+            clubs_task = None
+            if clean_query and page == 1:
+                clubs_task = self._search_campos_by_club_name(clean_query)
+
+            if clubs_task is not None:
+                data_direct, club_campos = await asyncio.gather(
+                    data_direct_task, clubs_task, return_exceptions=True
+                )
+                if isinstance(data_direct, Exception):
+                    raise data_direct
+                if isinstance(club_campos, Exception):
+                    logger.warning("Error al buscar campos por club: %s", club_campos)
+                    club_campos = []
+            else:
+                data_direct = await data_direct_task
+                club_campos = []
+
+            page_props = data_direct.get("pageProps", {}) if data_direct else {}
+            fields_data = page_props.get("fields", {}) or {}
+
+            campos_raw = fields_data.get("campos", []) or []
+            campos_items: list[CampoItem] = []
+            seen_codigos: set[str] = set()
+
+            for c in campos_raw:
+                cod = str(c.get("codigo", "")).strip()
+                if not cod:
+                    continue
+                seen_codigos.add(cod)
+                campos_items.append(
+                    CampoItem(
+                        codigo=cod,
+                        nombre=str(c.get("nombre", "")).strip(),
+                        direccion=c.get("direccion"),
+                        codigo_postal=c.get("codigo_postal"),
+                        localidad=c.get("localidad"),
+                        provincia=c.get("provincia"),
+                        superficie=c.get("superficie"),
+                        tipo_campo=c.get("tipo_campo"),
+                    )
+                )
+
+            # Integrar campos deducidos a partir de la búsqueda por club
+            if club_campos:
+                for cc in club_campos:
+                    if cc.codigo in seen_codigos:
+                        for idx, item in enumerate(campos_items):
+                            if item.codigo == cc.codigo and not item.club_asociado:
+                                campos_items[idx] = CampoItem(
+                                    codigo=item.codigo,
+                                    nombre=item.nombre,
+                                    direccion=item.direccion,
+                                    codigo_postal=item.codigo_postal,
+                                    localidad=item.localidad or cc.localidad,
+                                    provincia=item.provincia,
+                                    superficie=item.superficie,
+                                    tipo_campo=item.tipo_campo,
+                                    club_asociado=cc.club_asociado,
+                                )
+                    else:
+                        seen_codigos.add(cc.codigo)
+                        campos_items.append(cc)
+
+            total_reg = int(fields_data.get("total_registros", len(campos_items)))
+            if len(campos_items) > total_reg:
+                total_reg = len(campos_items)
+            total_pag = int(fields_data.get("total_paginas", 1))
+            pag_act = int(fields_data.get("pagina_actual", page))
+
+            return CamposSearchResponse(
+                total_registros=total_reg,
+                total_paginas=total_pag,
+                pagina_actual=pag_act,
+                campos=campos_items,
+            )
+        except Exception as error:
+            logger.error("Error al buscar campos en la RFFM: %s", error)
+            raise RFEFClientError(f"No se pudieron buscar terrenos de juego: {error}") from error
+
+    async def get_campo_detail(self, codigo_campo: str) -> CampoDetailResponse:
+        """Obtiene la ficha y la agenda completa de partidos de una instalación deportiva."""
+        clean_cod = str(codigo_campo).strip()
+        if not clean_cod:
+            raise RFEFClientError("El código de campo no puede estar vacío.")
+
+        try:
+            data = await self._get_next_json(f"campo/{clean_cod}.json")
+            page_props = data.get("pageProps", {})
+            field_data = page_props.get("field", {})
+
+            if not field_data:
+                raise RFEFClientError(f"No se encontraron datos para el campo {clean_cod}")
+
+            partidos_raw = field_data.get("partidos_campo", [])
+            partidos_list: list[PartidoCampo] = []
+
+            for p in partidos_raw:
+                partidos_list.append(
+                    PartidoCampo(
+                        codacta=str(p.get("codacta", "")),
+                        codgrupo=str(p.get("codgrupo")) if p.get("codgrupo") else None,
+                        nombre_grupo=p.get("nombre_grupo"),
+                        nombre_competicion=p.get("nombre_competicion"),
+                        jornada=str(p.get("jornada")) if p.get("jornada") else None,
+                        codequipo_casa=str(p.get("codequipo_casa")) if p.get("codequipo_casa") else None,
+                        nombre_equipo_casa=str(p.get("nombre_equipo_casa", "Local")),
+                        escudo_equipo_casa=fix_escudo_url(p.get("escudo_equipo_casa")),
+                        goles_casa=(
+                            str(p.get("goles_casa"))
+                            if p.get("goles_casa") != "" and p.get("goles_casa") is not None
+                            else None
+                        ),
+                        codequipo_fuera=str(p.get("codequipo_fuera")) if p.get("codequipo_fuera") else None,
+                        nombre_equipo_fuera=str(p.get("nombre_equipo_fuera", "Visitante")),
+                        escudo_equipo_fuera=fix_escudo_url(p.get("escudo_equipo_fuera")),
+                        goles_fuera=(
+                            str(p.get("goles_fuera"))
+                            if p.get("goles_fuera") != "" and p.get("goles_fuera") is not None
+                            else None
+                        ),
+                        fecha=p.get("fecha"),
+                    )
+                )
+
+            # Ordenar partidos por fecha cronológicamente
+            def parse_match_date(pc: PartidoCampo) -> str:
+                return pc.fecha or ""
+
+            partidos_list.sort(key=parse_match_date)
+
+            return CampoDetailResponse(
+                codigo_campo=clean_cod,
+                nombre_campo=str(field_data.get("nombre_campo") or "Campo sin nombre"),
+                direccion=field_data.get("direccion"),
+                localidad=field_data.get("localidad"),
+                provincia=field_data.get("provincia"),
+                codigo_postal=field_data.get("codigo_postal"),
+                telefono_contacto=field_data.get("telefono_contacto"),
+                superficie_juego=field_data.get("superficie_juego"),
+                tipo_campo=field_data.get("tipo_campo"),
+                latitud=str(field_data.get("latitud")) if field_data.get("latitud") else None,
+                longitud=str(field_data.get("longitud")) if field_data.get("longitud") else None,
+                total_partidos=len(partidos_list),
+                partidos=partidos_list,
+            )
+        except Exception as error:
+            logger.error("Error al obtener detalle del campo %s: %s", clean_cod, error)
+            raise RFEFClientError(f"No se pudo consultar el campo {clean_cod}: {error}") from error
 
 
 

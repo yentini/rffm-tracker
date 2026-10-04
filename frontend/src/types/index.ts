@@ -81,6 +81,7 @@ export interface PartidoCalendario {
   escudo_equipo_visitante?: string | null;
   goles_visitante?: string | null;
   campo?: string | null;
+  codigo_campo?: string | null;
   fecha?: string | null;
   hora?: string | null;
 }
@@ -448,4 +449,54 @@ export interface SearchTeamsResponse {
   teams: DeduceTeamResult[];
 }
 
+export interface CampoItem {
+  codigo: string;
+  nombre: string;
+  direccion?: string | null;
+  codigo_postal?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  superficie?: string | null;
+  tipo_campo?: string | null;
+  club_asociado?: string | null;
+}
 
+export interface CamposSearchResponse {
+  total_registros: number;
+  total_paginas: number;
+  pagina_actual: number;
+  campos: CampoItem[];
+}
+
+export interface PartidoCampo {
+  codacta: string;
+  codgrupo?: string | null;
+  nombre_grupo?: string | null;
+  nombre_competicion?: string | null;
+  jornada?: string | null;
+  codequipo_casa?: string | null;
+  nombre_equipo_casa: string;
+  escudo_equipo_casa?: string | null;
+  goles_casa?: string | null;
+  codequipo_fuera?: string | null;
+  nombre_equipo_fuera: string;
+  escudo_equipo_fuera?: string | null;
+  goles_fuera?: string | null;
+  fecha?: string | null;
+}
+
+export interface CampoDetailResponse {
+  codigo_campo: string;
+  nombre_campo: string;
+  direccion?: string | null;
+  localidad?: string | null;
+  provincia?: string | null;
+  codigo_postal?: string | null;
+  telefono_contacto?: string | null;
+  superficie_juego?: string | null;
+  tipo_campo?: string | null;
+  latitud?: string | null;
+  longitud?: string | null;
+  total_partidos: number;
+  partidos: PartidoCampo[];
+}

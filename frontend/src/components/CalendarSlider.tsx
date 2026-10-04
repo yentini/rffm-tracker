@@ -8,6 +8,7 @@ interface CalendarSliderProps {
   selectedTeam?: string;
   onClearTeam?: () => void;
   onSelectMatch?: (partido: PartidoCalendario) => void;
+  onSelectCampo?: (codigoCampo?: string | null, nombreCampo?: string | null, fecha?: string | null) => void;
 }
 
 /**
@@ -32,6 +33,7 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
   selectedTeam = '',
   onClearTeam,
   onSelectMatch,
+  onSelectCampo,
 }) => {
   const [selectedRoundIndex, setSelectedRoundIndex] = useState<number>(0);
   const touchStartX = useRef<number | null>(null);
@@ -162,10 +164,18 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                     </div>
 
                     {partido.campo && (
-                      <div className="flex items-center gap-1 text-slate-400 truncate max-w-[140px]" title={partido.campo}>
-                        <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                        <span className="truncate">{partido.campo}</span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectCampo?.(partido.codigo_campo, partido.campo, partido.fecha);
+                        }}
+                        className="flex items-center gap-1 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 px-2 py-0.5 rounded-lg border border-transparent hover:border-amber-500/30 transition-all truncate max-w-[170px] text-[11px] group/campo"
+                        title={`Ver agenda de partidos en ${partido.campo}`}
+                      >
+                        <MapPin className="w-3 h-3 text-emerald-400 group-hover/campo:text-amber-400 shrink-0" />
+                        <span className="truncate underline decoration-dotted underline-offset-2">{partido.campo}</span>
+                      </button>
                     )}
                   </div>
 
@@ -413,10 +423,18 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                   </div>
 
                   {partido.campo && (
-                    <div className="flex items-center gap-1 text-slate-400 truncate max-w-[160px]" title={partido.campo}>
-                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span className="truncate">{partido.campo}</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCampo?.(partido.codigo_campo, partido.campo, partido.fecha);
+                      }}
+                      className="flex items-center gap-1 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 px-2 py-0.5 rounded-lg border border-transparent hover:border-amber-500/30 transition-all truncate max-w-[180px] text-[11px] group/campo"
+                      title={`Ver agenda de partidos en ${partido.campo}`}
+                    >
+                      <MapPin className="w-3 h-3 text-emerald-400 group-hover/campo:text-amber-400 shrink-0" />
+                      <span className="truncate underline decoration-dotted underline-offset-2">{partido.campo}</span>
+                    </button>
                   )}
                 </div>
 

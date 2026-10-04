@@ -10,7 +10,6 @@ import {
   Clock,
   User,
   Loader2,
-  AlertCircle,
   ExternalLink,
   ChevronRight,
 } from 'lucide-react';
@@ -263,9 +262,12 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               <p className="text-xs font-medium">Recuperando acta oficial desde la RFFM...</p>
             </div>
           ) : error ? (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-center space-y-2">
-              <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
-              <p className="text-xs text-red-300 font-medium">{error}</p>
+            <div className="py-10 px-4 bg-slate-950/60 border border-slate-800 rounded-3xl text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto">
+                <Clock className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-white">Acta no disponible aún</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">{error}</p>
             </div>
           ) : activeTab === 'incidencias' ? (
             <div className="space-y-4">

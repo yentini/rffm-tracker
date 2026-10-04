@@ -22,6 +22,8 @@ import {
   ClasificacionEquipo,
   JornadaInfo,
   SearchTeamsResponse,
+  CampoDetailResponse,
+  CamposSearchResponse,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -361,37 +363,31 @@ export async function fetchCalendario(
 }
 
 export async function fetchActaPartido(
-  temporada: string,
-  competicion: string,
-  grupo: string,
-  codacta: string
+  codacta: string,
+  temporada?: string,
+  competicion?: string,
+  grupo?: string
 ): Promise<ActaPartido> {
   const url = new URL(`${BASE_URL}/api/acta-partido`);
-  url.searchParams.set('temporada', temporada);
-  url.searchParams.set('competicion', competicion);
-  url.searchParams.set('grupo', grupo);
   url.searchParams.set('codacta', codacta);
+  if (temporada) url.searchParams.set('temporada', temporada);
+  if (competicion) url.searchParams.set('competicion', competicion);
+  if (grupo) url.searchParams.set('grupo', grupo);
 
   try {
     const response = await fetch(url.toString(), {
       headers: { 'Accept': 'application/json' },
     });
-    if (!response.ok) throw new Error(`Status ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('El acta arbitral aún no ha sido publicada o validada en la RFFM.');
+      }
+      throw new Error(`Error ${response.status}`);
+    }
     const data: ActaResponse = await response.json();
     return data.game;
-  } catch (error) {
-    console.warn('[API Client] Error al obtener acta del partido vía backend, probando directo o fallback:', error);
-    // Intentar directamente con la URL oficial de Next.js si el backend intermediario fallase
-    try {
-      const directUrl = `https://www.rffm.es/_next/data/NY30BEAEFulRtBHCLvSa1/acta-partido/${codacta}.json?temporada=${temporada}&competicion=${competicion}&grupo=${grupo}&codacta=${codacta}`;
-      const directRes = await fetch(directUrl);
-      if (directRes.ok) {
-        const directData = await directRes.json();
-        return directData?.pageProps?.game || { codacta };
-      }
-    } catch {
-      // Ignorar fallback secundario
-    }
+  } catch (error: any) {
+    console.warn('[API Client] Error al obtener acta del partido vía backend:', error);
     throw error;
   }
 }
@@ -785,6 +781,42 @@ export async function searchTeams(
     url.searchParams.set('categoria', categoria.trim());
   }
 
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Status ${response.status}`);
+  return await response.json();
+}
+
+/**
+ * Busca terrenos de juego e instalaciones deportivas de la RFFM.
+ */
+export async function searchCampos(
+  query: string,
+  page: number = 1
+): Promise<CamposSearchResponse> {
+  const url = new URL(`${BASE_URL}/api/campos/search`);
+  if (query && query.trim()) {
+    url.searchParams.set('query', query.trim());
+  }
+  if (page > 1) {
+    url.searchParams.set('page', String(page));
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Status ${response.status}`);
+  return await response.json();
+}
+
+/**
+ * Obtiene la ficha de una sede deportiva y su agenda completa de partidos.
+ */
+export async function fetchCampoDetail(
+  codigoCampo: string
+): Promise<CampoDetailResponse> {
+  const url = new URL(`${BASE_URL}/api/campos/${encodeURIComponent(codigoCampo.trim())}`);
   const response = await fetch(url.toString(), {
     headers: { Accept: 'application/json' },
   });
