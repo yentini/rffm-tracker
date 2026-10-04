@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { CampoDetailResponse } from '../types';
 import { fetchCampoDetail, searchCampos } from '../services/api';
 import {
@@ -42,6 +42,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState<string>('all');
+  const dateScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -216,6 +217,31 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
     return fechaStr;
   };
 
+  // Desplazar automáticamente el contenedor horizontal para centrar el día seleccionado
+  useEffect(() => {
+    if (!isLoading && activeDate && dateScrollContainerRef.current) {
+      const timer = setTimeout(() => {
+        const container = dateScrollContainerRef.current;
+        if (!container) return;
+
+        const activeBtn = container.querySelector<HTMLElement>('[data-active="true"]');
+        if (activeBtn) {
+          const containerRect = container.getBoundingClientRect();
+          const buttonRect = activeBtn.getBoundingClientRect();
+          const scrollOffset =
+            buttonRect.left + buttonRect.width / 2 - (containerRect.left + containerRect.width / 2);
+
+          container.scrollTo({
+            left: container.scrollLeft + scrollOffset,
+            behavior: 'smooth',
+          });
+        }
+      }, 50);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeDate, isLoading, availableDates]);
+
   return (
     <div
       role="dialog"
@@ -288,9 +314,13 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
 
         {/* Selector horizontal de fechas / días */}
         {!isLoading && !error && availableDates.length > 0 && (
-          <div className="px-5 py-2.5 border-b border-slate-800/60 bg-slate-950/40 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-2">
+          <div
+            ref={dateScrollContainerRef}
+            className="px-5 py-2.5 border-b border-slate-800/60 bg-slate-950/40 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-2"
+          >
             <button
               type="button"
+              data-active={activeDate === 'all'}
               onClick={() => setActiveDate('all')}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeDate === 'all'
@@ -314,6 +344,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                 <button
                   key={dStr}
                   type="button"
+                  data-active={isSelected}
                   onClick={() => setActiveDate(dStr)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                     isSelected
