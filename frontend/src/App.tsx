@@ -6,6 +6,8 @@ import { MatchDetailModal } from './components/MatchDetailModal';
 import { BottomNav } from './components/BottomNav';
 import { FavoritesView } from './components/FavoritesView';
 import { ClubsView } from './components/ClubsView';
+import { ClasificacionView } from './components/ClasificacionView';
+import { SmartTeamSearchModal } from './components/SmartTeamSearchModal';
 import {
   fetchActaPartido,
   fetchCalendario,
@@ -24,6 +26,7 @@ import {
   ActaPartido,
   CalendarioResponse,
   Competition,
+  DeduceTeamResult,
   EquipoGrupo,
   FavoriteTeam,
   GameType,
@@ -31,7 +34,7 @@ import {
   PartidoCalendario,
   Season,
 } from './types';
-import { WifiOff, RefreshCcw, CalendarDays, Trophy, Settings } from 'lucide-react';
+import { WifiOff, RefreshCcw, CalendarDays, Settings } from 'lucide-react';
 
 export function App() {
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -64,6 +67,17 @@ export function App() {
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoadingCalendario, setIsLoadingCalendario] = useState(false);
   const [isOfflineWarning, setIsOfflineWarning] = useState(false);
+  const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
+
+  // Manejador para aplicar equipo deducido automáticamente
+  const handleSelectDeduceTeam = (deduced: DeduceTeamResult) => {
+    if (deduced.codigo_temporada) setSelectedSeason(deduced.codigo_temporada);
+    if (deduced.codigo_tipo_juego) setSelectedGameType(deduced.codigo_tipo_juego);
+    if (deduced.codigo_competicion) setSelectedCompetition(deduced.codigo_competicion);
+    if (deduced.codigo_grupo) setSelectedGroup(deduced.codigo_grupo);
+    setSelectedTeam(deduced.codigo_equipo);
+    setActiveTab('partidos');
+  };
 
   // Carga inicial de temporadas y modalidades
   const loadInitialData = async () => {
@@ -374,6 +388,7 @@ export function App() {
                 isLoadingGroups={isLoadingGroups}
                 isCurrentFavorite={isCurrentFavorite}
                 onToggleFavorite={handleToggleFavorite}
+                onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
               />
 
               {/* Sección 2: Calendario (Horizontal por Jornadas o Vertical por Equipo) */}
@@ -427,21 +442,23 @@ export function App() {
           )}
 
           {activeTab === 'clasificacion' && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 text-center space-y-3 shadow-xl backdrop-blur-md">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-                <Trophy className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Clasificación y Tablas</h3>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-                Próximamente disponible. Puedes consultar las jornadas y actas oficiales en la pestaña de Partidos.
-              </p>
-              <button
-                onClick={() => setActiveTab('partidos')}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-2xl transition-all"
-              >
-                Ir a Partidos
-              </button>
-            </div>
+            <ClasificacionView
+              seasons={seasons}
+              gameTypes={gameTypes}
+              competitions={competitions}
+              groups={groups}
+              selectedSeason={selectedSeason}
+              selectedGameType={selectedGameType}
+              selectedCompetition={selectedCompetition}
+              selectedGroup={selectedGroup}
+              onSeasonChange={handleSeasonChange}
+              onGameTypeChange={handleGameTypeChange}
+              onCompetitionChange={handleCompetitionChange}
+              onGroupChange={handleGroupChange}
+              isLoadingCompetitions={isLoadingCompetitions}
+              isLoadingGroups={isLoadingGroups}
+              favoriteTeamCodes={favorites.map((f) => f.teamId)}
+            />
           )}
 
           {activeTab === 'ajustes' && (
@@ -466,6 +483,13 @@ export function App() {
           acta={actaDetail}
           isLoading={isLoadingActa}
           error={actaError}
+        />
+
+        {/* Modal de Búsqueda Inteligente / Deducción de Equipo */}
+        <SmartTeamSearchModal
+          isOpen={isSmartSearchOpen}
+          onClose={() => setIsSmartSearchOpen(false)}
+          onSelectTeam={handleSelectDeduceTeam}
         />
 
         {/* Barra de Navegación Inferior Fija */}

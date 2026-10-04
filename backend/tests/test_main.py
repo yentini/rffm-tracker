@@ -481,6 +481,120 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(data["build_id"], "NEW_FORCE_TOKEN")
         mock_get_build_id.assert_awaited_with(force_refresh=True)
 
+    @patch("app.main.rfef_client.get_clasificacion", new_callable=AsyncMock)
+    def test_get_clasificacion_returns_data(self, mock_get_clasificacion):
+        # Arrange
+        from app.schemas import ClasificacionResponse, ClasificacionEquipo, Promocion, JornadaInfo
+        mock_get_clasificacion.return_value = ClasificacionResponse(
+            temporada="22",
+            competicion="PRIMERA CADETE",
+            codigo_competicion="26737751",
+            grupo="Grupo 4",
+            codigo_grupo="26737755",
+            jornada="2",
+            fecha_jornada="03-10-2026",
+            current_round=2,
+            total_jornadas=2,
+            jornadas_disponibles=[
+                JornadaInfo(codjornada="1", nombre="1", fecha_jornada="26-09-2026"),
+                JornadaInfo(codjornada="2", nombre="2", fecha_jornada="03-10-2026"),
+            ],
+            promociones=[
+                Promocion(orden="1", nombre_promocion="ASCENSOS", color_promocion="#41FF1A")
+            ],
+            clasificacion=[
+                ClasificacionEquipo(
+                    posicion="1",
+                    codequipo="466650",
+                    nombre="CLUB FUENTELARREYNA 'A'",
+                    puntos="6",
+                    jugados="2",
+                    ganados="2",
+                    empatados="0",
+                    perdidos="0",
+                    goles_a_favor="20",
+                    goles_en_contra="2",
+                    diferencia_goles="+18",
+                )
+            ],
+        )
+
+        # Act
+        response = self.client.get(
+            "/api/clasificacion?temporada=22&tipojuego=1&competicion=26737751&grupo=26737755&jornada=2"
+        )
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["competicion"], "PRIMERA CADETE")
+        self.assertEqual(data["jornada"], "2")
+        self.assertEqual(len(data["clasificacion"]), 1)
+        self.assertEqual(data["clasificacion"][0]["nombre"], "CLUB FUENTELARREYNA 'A'")
+        self.assertEqual(data["clasificacion"][0]["puntos"], "6")
+        self.assertEqual(data["clasificacion"][0]["diferencia_goles"], "+18")
+
+    @patch("app.main.rfef_client.get_clasificacion", new_callable=AsyncMock)
+    def test_get_clasificacion_handles_rfef_error(self, mock_get_clasificacion):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_get_clasificacion.side_effect = RFEFClientError("Clasificación no disponible")
+
+        # Act
+        response = self.client.get(
+            "/api/clasificacion?temporada=22&tipojuego=1&competicion=26737751&grupo=26737755&jornada=99"
+        )
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error al obtener clasificación desde la RFFM", response.json()["detail"])
+
+    @patch("app.main.rfef_client.search_and_deduce_teams", new_callable=AsyncMock)
+    def test_search_teams_deduces_competition(self, mock_search):
+        # Arrange
+        from app.schemas import DeduceTeamResult
+        mock_search.return_value = [
+            DeduceTeamResult(
+                codigo_equipo="176",
+                nombre_equipo="A.D. CALA POZUELO 'A'",
+                categoria="PREFERENTE INFANTIL",
+                codigo_club="1026",
+                nombre_club="A.D. CALA POZUELO",
+                codigo_competicion="26737819",
+                nombre_competicion="PREFERENTE INFANTIL",
+                codigo_grupo="26737820",
+                nombre_grupo="Grupo 1",
+                codigo_tipo_juego="1",
+                codigo_temporada="22",
+            )
+        ]
+
+        # Act
+        response = self.client.get("/api/teams/search?query=Pozuelo+Infantil")
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(data["teams"][0]["codigo_equipo"], "176")
+        self.assertEqual(data["teams"][0]["codigo_competicion"], "26737819")
+        self.assertEqual(data["teams"][0]["codigo_grupo"], "26737820")
+
+    @patch("app.main.rfef_client.search_and_deduce_teams", new_callable=AsyncMock)
+    def test_search_teams_handles_error(self, mock_search):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_search.side_effect = RFEFClientError("Fallo en búsqueda")
+
+        # Act
+        response = self.client.get("/api/teams/search?query=ErrTeam")
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error en la búsqueda y deducción de equipos", response.json()["detail"])
+
+
+
 
 class TestRFEFClientBuildId(unittest.IsolatedAsyncioTestCase):
     async def test_get_build_id_extracts_from_next_data(self):
@@ -524,6 +638,107 @@ class TestRFEFClientBuildId(unittest.IsolatedAsyncioTestCase):
             data = await client._get_next_json("competicion/calendario.json")
             self.assertEqual(data, {"pageProps": {"ok": True}})
             self.assertEqual(mock_http_get.call_count, 2)
+
+    async def test_rfef_client_get_clasificacion_parses_json(self):
+        from app.rfef_client import RFEFClient
+        client = RFEFClient()
+
+        fake_page_props = {
+            "standings": {
+                "competicion": "PRIMERA CADETE",
+                "codigo_competicion": "26737751",
+                "grupo": "Grupo 4",
+                "codigo_grupo": "26737755",
+                "jornada": "2",
+                "fecha_jornada": "03-10-2026",
+                "promociones": [
+                    {"orden": "1", "nombre_promocion": "ASCENSOS", "color_promocion": "#41FF1A"}
+                ],
+                "clasificacion": [
+                    {
+                        "posicion": "1",
+                        "codequipo": "466650",
+                        "nombre": "CLUB FUENTELARREYNA 'A'",
+                        "puntos": "6",
+                        "jugados": "2",
+                        "ganados": "2",
+                        "empatados": "0",
+                        "perdidos": "0",
+                        "goles_a_favor": "20",
+                        "goles_en_contra": "2",
+                        "racha_partidos": [{"tipo": "G", "color": "#04B431"}],
+                    }
+                ],
+            },
+            "rounds": {
+                "currentRound": 2,
+                "jornadas": [
+                    {"codjornada": "1", "nombre": "1"},
+                    {"codjornada": "2", "nombre": "2"},
+                ],
+            },
+        }
+
+        with patch.object(client, "_get_next_json", new_callable=AsyncMock) as mock_get_next:
+            mock_get_next.return_value = {"pageProps": fake_page_props}
+
+            res = await client.get_clasificacion(
+                temporada="22", tipojuego="1", competicion="26737751", grupo="26737755", jornada="2"
+            )
+            self.assertEqual(res.competicion, "PRIMERA CADETE")
+            self.assertEqual(res.jornada, "2")
+            self.assertEqual(res.current_round, 2)
+            self.assertEqual(res.total_jornadas, 2)
+            self.assertEqual(len(res.clasificacion), 1)
+            self.assertEqual(res.clasificacion[0].nombre, "CLUB FUENTELARREYNA 'A'")
+            self.assertEqual(res.clasificacion[0].diferencia_goles, "+18")
+            self.assertEqual(len(res.clasificacion[0].racha_partidos), 1)
+            self.assertEqual(res.clasificacion[0].racha_partidos[0].tipo, "G")
+
+    async def test_search_and_deduce_compound_query(self):
+        from app.rfef_client import RFEFClient
+        from app.schemas import Club, ClubsResponse, ClubDetail, ClubEquipo, ClubsPagination
+        client = RFEFClient()
+
+        fake_clubs_res = ClubsResponse(
+            clubs=[
+                Club(codigo_club="100", nombre="A.D. UNION ADARVE", clave_acceso=None, escudo=None, localidad=None)
+            ],
+            pagination=ClubsPagination(pagina_actual=1, total_paginas=1, total_registros=1, pagina_anterior=None, pagina_siguiente=None)
+        )
+
+        fake_club_detail = ClubDetail(
+            codigo="100",
+            nombre_club="A.D. UNION ADARVE",
+            equipos=[
+                ClubEquipo(codigo_equipo="101", nombre_equipo="A.D. UNION ADARVE 'A'", categoria="PREFERENTE CADETE"),
+                ClubEquipo(codigo_equipo="102", nombre_equipo="A.D. UNION ADARVE 'D'", categoria="PRIMERA CADETE"),
+                ClubEquipo(codigo_equipo="103", nombre_equipo="A.D. UNION ADARVE 'A'", categoria="PRIMERA INFANTIL"),
+            ]
+        )
+
+        with patch.object(client, "get_clubs", new_callable=AsyncMock) as mock_get_clubs, \
+             patch.object(client, "get_club_detail", new_callable=AsyncMock) as mock_get_detail, \
+             patch.object(client, "deduce_team_competition", new_callable=AsyncMock) as mock_deduce:
+
+            mock_get_clubs.return_value = fake_clubs_res
+            mock_get_detail.return_value = fake_club_detail
+            mock_deduce.return_value = ("26737751", "PRIMERA CADETE", "26737755", "Grupo 4", "1")
+
+            # 1. Test "adarve cadete primera" -> should match only TeamInClub 102
+            results = await client.search_and_deduce_teams("adarve cadete primera")
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].codigo_equipo, "102")
+            self.assertEqual(results[0].nombre_equipo, "A.D. UNION ADARVE 'D'")
+
+            # 2. Test "adarve cadete d" -> should match only TeamInClub 102
+            results_d = await client.search_and_deduce_teams("adarve cadete d")
+            self.assertEqual(len(results_d), 1)
+            self.assertEqual(results_d[0].codigo_equipo, "102")
+
+            # 3. Test "adarve primera" -> should match both 102 (Cadete Primera) and 103 (Infantil Primera)
+            results_pri = await client.search_and_deduce_teams("adarve primera")
+            self.assertEqual(len(results_pri), 2)
 
 
 if __name__ == "__main__":

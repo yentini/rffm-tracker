@@ -1,5 +1,6 @@
 """HTTP Client for RFEF / RFFM integration with async httpx."""
 
+import asyncio
 import json
 import logging
 import os
@@ -12,6 +13,8 @@ import httpx
 from app.schemas import (
     ActaPartido,
     CalendarioResponse,
+    ClasificacionEquipo,
+    ClasificacionResponse,
     Club,
     ClubDetail,
     ClubEquipacion,
@@ -19,17 +22,21 @@ from app.schemas import (
     ClubsPagination,
     ClubsResponse,
     Competition,
+    DeduceTeamResult,
     EstadoPartido,
     Equipo,
     GameType,
     Group,
     Jornada,
+    JornadaInfo,
     Partido,
     PartidoCalendario,
     PlayerCompeticion,
     PlayerDetail,
     PlayerStat,
     PlayerTemporada,
+    Promocion,
+    RachaPartido,
     Season,
     TeamDelegado,
     TeamDetail,
@@ -573,7 +580,7 @@ class RFEFClient:
                 timeout=max(self.timeout, 25.0),
             )
             page_props = data.get("pageProps", {})
-            clubs_raw = page_props.get("clubs", {})
+            clubs_raw = page_props.get("clubs") or {}
 
             def parse_int_safe(val: Any) -> Optional[int]:
                 if val is None or val == "":
@@ -983,5 +990,413 @@ class RFEFClient:
             raise RFEFClientError(
                 f"No se pudo consultar el jugador {codjugador}: {error}"
             ) from error
+
+    async def get_clasificacion(
+        self,
+        temporada: str,
+        tipojuego: str,
+        competicion: str,
+        grupo: str,
+        jornada: str,
+    ) -> ClasificacionResponse:
+        """Obtiene la clasificación oficial de un grupo en una jornada de la RFFM."""
+        params = {
+            "temporada": temporada.strip(),
+            "tipojuego": tipojuego.strip(),
+            "competicion": competicion.strip(),
+            "grupo": grupo.strip(),
+            "jornada": jornada.strip(),
+        }
+
+        try:
+            data = await self._get_next_json(
+                "competicion/clasificaciones.json",
+                params=params,
+                timeout=max(self.timeout, 25.0),
+            )
+            page_props = data.get("pageProps", {})
+            standings_raw = page_props.get("standings", {})
+            rounds_raw = page_props.get("rounds", {})
+
+            # Promociones
+            promociones: list[Promocion] = []
+            for prom in standings_raw.get("promociones", []):
+                if isinstance(prom, dict):
+                    promociones.append(
+                        Promocion(
+                            orden=str(prom.get("orden", "")),
+                            nombre_promocion=str(prom.get("nombre_promocion", "")),
+                            color_promocion=str(prom.get("color_promocion", "#ffffff")),
+                        )
+                    )
+
+            # Jornadas disponibles
+            jornadas_disponibles: list[JornadaInfo] = []
+            for j in rounds_raw.get("jornadas", []):
+                if isinstance(j, dict):
+                    jornadas_disponibles.append(
+                        JornadaInfo(
+                            codjornada=str(j.get("codjornada", "")),
+                            nombre=str(j.get("nombre", j.get("codjornada", ""))),
+                            fecha_jornada=j.get("fecha_jornada"),
+                        )
+                    )
+
+            current_round = rounds_raw.get("currentRound")
+            try:
+                current_round_int = int(current_round) if current_round is not None else None
+            except (ValueError, TypeError):
+                current_round_int = None
+
+            # Clasificación por equipos
+            clasif_list: list[ClasificacionEquipo] = []
+            raw_clasif = standings_raw.get("clasificacion", [])
+            for item in raw_clasif:
+                if not isinstance(item, dict):
+                    continue
+
+                gf = int(item.get("goles_a_favor", 0) or 0)
+                gc = int(item.get("goles_en_contra", 0) or 0)
+                diff = gf - gc
+                diff_str = f"+{diff}" if diff > 0 else str(diff)
+
+                rachas: list[RachaPartido] = []
+                for r in item.get("racha_partidos", []):
+                    if isinstance(r, dict):
+                        rachas.append(
+                            RachaPartido(
+                                tipo=str(r.get("tipo", "")),
+                                color=str(r.get("color", "#888888")),
+                            )
+                        )
+
+                clasif_list.append(
+                    ClasificacionEquipo(
+                        posicion=str(item.get("posicion", "")),
+                        codequipo=str(item.get("codequipo", "")),
+                        nombre=str(item.get("nombre", "")),
+                        escudo=fix_escudo_url(item.get("url_img")),
+                        color=item.get("color"),
+                        puntos=str(item.get("puntos", "0")),
+                        jugados=str(item.get("jugados", "0")),
+                        ganados=str(item.get("ganados", "0")),
+                        empatados=str(item.get("empatados", "0")),
+                        perdidos=str(item.get("perdidos", "0")),
+                        goles_a_favor=str(gf),
+                        goles_en_contra=str(gc),
+                        diferencia_goles=diff_str,
+                        puntos_sancion=str(item.get("puntos_sancion", "0")),
+                        jugados_casa=(
+                            str(item.get("jugados_casa"))
+                            if item.get("jugados_casa") is not None
+                            else None
+                        ),
+                        ganados_casa=(
+                            str(item.get("ganados_casa"))
+                            if item.get("ganados_casa") is not None
+                            else None
+                        ),
+                        empatados_casa=(
+                            str(item.get("empatados_casa"))
+                            if item.get("empatados_casa") is not None
+                            else None
+                        ),
+                        perdidos_casa=(
+                            str(item.get("perdidos_casa"))
+                            if item.get("perdidos_casa") is not None
+                            else None
+                        ),
+                        puntos_local=(
+                            str(item.get("puntos_local"))
+                            if item.get("puntos_local") is not None
+                            else None
+                        ),
+                        jugados_fuera=(
+                            str(item.get("jugados_fuera"))
+                            if item.get("jugados_fuera") is not None
+                            else None
+                        ),
+                        ganados_fuera=(
+                            str(item.get("ganados_fuera"))
+                            if item.get("ganados_fuera") is not None
+                            else None
+                        ),
+                        empatados_fuera=(
+                            str(item.get("empatados_fuera"))
+                            if item.get("empatados_fuera") is not None
+                            else None
+                        ),
+                        perdidos_fuera=(
+                            str(item.get("perdidos_fuera"))
+                            if item.get("perdidos_fuera") is not None
+                            else None
+                        ),
+                        puntos_visitante=(
+                            str(item.get("puntos_visitante"))
+                            if item.get("puntos_visitante") is not None
+                            else None
+                        ),
+                        racha_partidos=rachas,
+                    )
+                )
+
+            return ClasificacionResponse(
+                temporada=temporada,
+                competicion=str(standings_raw.get("competicion", "")),
+                codigo_competicion=str(standings_raw.get("codigo_competicion", competicion)),
+                grupo=str(standings_raw.get("grupo", "")),
+                codigo_grupo=str(standings_raw.get("codigo_grupo", grupo)),
+                jornada=str(standings_raw.get("jornada", jornada)),
+                fecha_jornada=standings_raw.get("fecha_jornada"),
+                current_round=current_round_int,
+                total_jornadas=len(jornadas_disponibles),
+                jornadas_disponibles=jornadas_disponibles,
+                promociones=promociones,
+                clasificacion=clasif_list,
+            )
+        except Exception as error:
+            logger.error("Error al obtener clasificación de la RFFM: %s", error)
+            raise RFEFClientError(
+                f"No se pudo consultar la clasificación de {competicion} (grupo {grupo}, jornada {jornada}): {error}"
+            ) from error
+
+    async def deduce_team_competition(
+        self, codequipo: str
+    ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], str]:
+        """Deduce competición y grupo a partir de la ficha de equipo y sus jugadores.
+        Retorna (codigo_competicion, nombre_competicion, codgrupo, nombre_grupo, tipojuego).
+        """
+        try:
+            team_data = await self.get_team_detail(codequipo)
+            cat = (team_data.categoria if team_data else "").lower()
+            is_f7 = any(c in cat for c in ["alevin", "alevín", "benjamin", "benjamín", "prebenjamin", "debutante", "f-7", "f7"])
+            default_tipojuego = "2" if is_f7 else "1"
+
+            if not team_data or not team_data.jugadores:
+                return None, None, None, None, default_tipojuego
+
+            # Revisar hasta los primeros 3 jugadores para encontrar su competición
+            for jug in team_data.jugadores[:3]:
+                try:
+                    p_detail = await self.get_player_detail(jug.cod_jugador)
+                    for comp in p_detail.competiciones_participa:
+                        if str(comp.codequipo) == str(codequipo) or len(p_detail.competiciones_participa) == 1:
+                            cat_resolved = (team_data.categoria or comp.nombre_competicion or "").lower()
+                            f7_resolved = any(c in cat_resolved for c in ["alevin", "alevín", "benjamin", "benjamín", "prebenjamin", "debutante", "f-7", "f7"])
+                            return (
+                                comp.codigo_competicion,
+                                comp.nombre_competicion,
+                                comp.codgrupo,
+                                comp.nombre_grupo,
+                                "2" if f7_resolved else "1",
+                            )
+                except Exception as p_err:
+                    logger.debug("Error al consultar jugador %s para deducir equipo: %s", jug.cod_jugador, p_err)
+                    continue
+
+            return None, None, None, None, default_tipojuego
+        except Exception as err:
+            logger.warning("No se pudo deducir competición para equipo %s: %s", codequipo, err)
+            return None, None, None, None, "1"
+
+    async def get_all_competitions_cached(self, temporada: str = "22") -> list[Competition]:
+        """Obtiene y cachea el catálogo completo de competiciones oficiales de F-11 y F-7."""
+        if not hasattr(self, "_comps_cache"):
+            self._comps_cache: dict[str, list[Competition]] = {}
+
+        if temporada in self._comps_cache:
+            return self._comps_cache[temporada]
+
+        try:
+            f11, f7 = await asyncio.gather(
+                self.get_competitions(temporada, "1"),
+                self.get_competitions(temporada, "2"),
+                return_exceptions=True,
+            )
+            comps: list[Competition] = []
+            if isinstance(f11, list):
+                comps.extend(f11)
+            if isinstance(f7, list):
+                comps.extend(f7)
+
+            if comps:
+                self._comps_cache[temporada] = comps
+            return comps
+        except Exception as err:
+            logger.warning("Error al cachear catálogo de competiciones: %s", err)
+            return []
+
+    async def search_and_deduce_teams(
+        self, query: str, categoria: Optional[str] = None, max_results: int = 100
+    ) -> list[DeduceTeamResult]:
+        """Busca clubes y equipos coincidentes deduciendo su competición y grupo oficial.
+        Soporta consultas compuestas (ej. 'adarve primera', 'adarve cadete primera', 'adarve cadete d').
+        """
+        clean_q = query.strip()
+        if not clean_q:
+            return []
+
+        KEYWORDS_CAT_MAP = {
+            "aficionado": "aficionado", "aficionados": "aficionado", "senior": "senior", "sénior": "senior",
+            "juvenil": "juvenil", "juveniles": "juvenil",
+            "cadete": "cadete", "cadetes": "cadete",
+            "infantil": "infantil", "infantiles": "infantil",
+            "alevin": "alevin", "alevín": "alevin", "alevínes": "alevin", "alevines": "alevin", "alev": "alevin",
+            "benjamin": "benjamin", "benjamín": "benjamin", "benjamines": "benjamin",
+            "prebenjamin": "prebenjamin", "prebenjamín": "prebenjamin", "prebenjamines": "prebenjamin",
+            "debutante": "debutante", "debutantes": "debutante",
+            "femenino": "femenino", "femenina": "femenino", "femeninos": "femenino", "femeninas": "femenino",
+            "autonomica": "autonomica", "autonómica": "autonomica", "autonomico": "autonomica", "autonómico": "autonomica",
+            "preferente": "preferente", "preferentes": "preferente",
+            "primera": "primera", "1a": "primera", "1ª": "primera",
+            "segunda": "segunda", "2a": "segunda", "2ª": "segunda",
+            "tercera": "tercera", "3a": "tercera", "3ª": "tercera",
+            "honor": "honor",
+        }
+
+        tokens = clean_q.split()
+        cat_filters: set[str] = set()
+        if categoria and categoria.strip() and categoria.strip().lower() != "todos":
+            cat_norm = categoria.strip().lower()
+            cat_filters.add(KEYWORDS_CAT_MAP.get(cat_norm, cat_norm))
+
+        club_tokens: list[str] = []
+        letter_filters: list[str] = []
+
+        for t in tokens:
+            t_norm = t.lower()
+            if t_norm in KEYWORDS_CAT_MAP:
+                cat_filters.add(KEYWORDS_CAT_MAP[t_norm])
+            elif len(t) == 1 and t.isalpha():
+                letter_filters.append(t.upper())
+            elif t.startswith("'") and t.endswith("'") and len(t) == 3:
+                letter_filters.append(t[1].upper())
+            else:
+                club_tokens.append(t)
+
+        club_search = " ".join(club_tokens) if club_tokens else clean_q
+
+        clubs_res = await self.get_clubs(page=1, search=club_search)
+        if not clubs_res.clubs and club_search != clean_q:
+            clubs_res = await self.get_clubs(page=1, search=clean_q)
+
+        candidate_teams: list[tuple[Club, Any]] = []
+
+        for club in clubs_res.clubs[:3]:
+            try:
+                club_detail = await self.get_club_detail(club.codigo_club)
+                for eq in club_detail.equipos:
+                    eq_cat = eq.categoria.lower()
+                    eq_name = eq.nombre_equipo.lower()
+
+                    # Comprobar que coincidan todos los filtros de categoría/división
+                    if not all(cf in eq_cat or cf in eq_name for cf in cat_filters):
+                        continue
+
+                    # Comprobar letras de sub-equipo (ej. 'D', 'B', 'A')
+                    if letter_filters:
+                        matches_letter = any(
+                            f"'{lf.lower()}'" in eq_name
+                            or f" {lf.lower()}" in eq_name
+                            or eq_name.endswith(f" {lf.lower()}")
+                            for lf in letter_filters
+                        )
+                        if not matches_letter:
+                            continue
+
+                    candidate_teams.append((club, eq))
+                    if len(candidate_teams) >= max_results:
+                        break
+                if len(candidate_teams) >= max_results:
+                    break
+            except Exception as club_err:
+                logger.warning("Error al procesar club %s para deducción: %s", club.codigo_club, club_err)
+                continue
+
+        if not candidate_teams:
+            return []
+
+        # Cargar catálogo de 64 competiciones de RFFM (en memoria, ~0.01s tras primera carga)
+        all_comps = await self.get_all_competitions_cached("22")
+
+        def norm_txt(s: str) -> str:
+            return (
+                s.lower()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("á", "a")
+                .replace("é", "e")
+                .replace("í", "i")
+                .replace("ó", "o")
+                .replace("ú", "u")
+            )
+
+        comp_dict = {norm_txt(c.nombre): c for c in all_comps}
+
+        async def _deduce_entry(club_item: Club, team_item: Any) -> DeduceTeamResult:
+            team_cat = team_item.categoria or ""
+            cat_low = team_cat.lower()
+            is_f7 = any(
+                w in cat_low
+                for w in [
+                    "alevin f-7", "alevin f7", "alev-f7", "benjamin", "benjamín",
+                    "prebenjamin", "prebenjamín", "debutante", "f-7", "f7"
+                ]
+            ) and not ("alevin" in cat_low and "f-7" not in cat_low and "f7" not in cat_low and "alev-f7" not in cat_low)
+
+            default_tipojuego = "2" if is_f7 else "1"
+
+            # 1. Matching ultrarrápido contra catálogo oficial de RFFM
+            n_cat = norm_txt(team_cat)
+            matched_comp = comp_dict.get(n_cat)
+            if not matched_comp:
+                # Coincidencia parcial
+                for k, c in comp_dict.items():
+                    if k in n_cat or n_cat in k:
+                        matched_comp = c
+                        break
+
+            comp_id = matched_comp.codigo if matched_comp else None
+            comp_name = matched_comp.nombre if matched_comp else team_cat
+            grp_id = None
+            grp_name = None
+
+            # 2. Si es categoría juvenil, cadete o aficionado (con fichas públicas), intentar deducir grupo exacto
+            is_older = any(w in cat_low for w in ["cadete", "juvenil", "aficionado", "senior", "sénior"])
+            if is_older:
+                try:
+                    # Inspección con timeout rápido de 2 segundos para no bloquear la búsqueda
+                    d_comp_id, d_comp_name, d_grp_id, d_grp_name, d_tj = await asyncio.wait_for(
+                        self.deduce_team_competition(team_item.codigo_equipo),
+                        timeout=2.0
+                    )
+                    if d_comp_id:
+                        comp_id = d_comp_id
+                        comp_name = d_comp_name or comp_name
+                        grp_id = d_grp_id
+                        grp_name = d_grp_name
+                        default_tipojuego = d_tj
+                except Exception:
+                    pass
+
+            return DeduceTeamResult(
+                codigo_equipo=team_item.codigo_equipo,
+                nombre_equipo=team_item.nombre_equipo,
+                categoria=team_item.categoria,
+                codigo_club=club_item.codigo_club,
+                nombre_club=club_item.nombre,
+                escudo_club=club_item.escudo,
+                codigo_competicion=comp_id,
+                nombre_competicion=comp_name,
+                codigo_grupo=grp_id,
+                nombre_grupo=grp_name,
+                codigo_tipo_juego=default_tipojuego,
+                codigo_temporada="22",
+            )
+
+        results = await asyncio.gather(*[_deduce_entry(c, eq) for c, eq in candidate_teams])
+        return list(results)
+
+
 
 

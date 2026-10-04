@@ -18,6 +18,10 @@ import {
   TeamDetail,
   PlayerDetail,
   BuildIdResponse,
+  ClasificacionResponse,
+  ClasificacionEquipo,
+  JornadaInfo,
+  SearchTeamsResponse,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -663,6 +667,131 @@ export async function fetchPlayerDetail(
     throw error;
   }
 }
+
+export async function fetchClasificacion(
+  temporada: string,
+  tipojuego: string,
+  competicion: string,
+  grupo: string,
+  jornada: string
+): Promise<ClasificacionResponse> {
+  const url = new URL(`${BASE_URL}/api/clasificacion`);
+  url.searchParams.set('temporada', temporada.trim());
+  url.searchParams.set('tipojuego', tipojuego.trim());
+  url.searchParams.set('competicion', competicion.trim());
+  url.searchParams.set('grupo', grupo.trim());
+  url.searchParams.set('jornada', jornada.trim());
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.warn('[API Client] Error al obtener clasificación vía backend, probando directo de RFFM:', error);
+    try {
+      const directRes = await fetchRffmNextData(
+        `competicion/clasificaciones.json?temporada=${encodeURIComponent(temporada.trim())}&tipojuego=${encodeURIComponent(tipojuego.trim())}&competicion=${encodeURIComponent(competicion.trim())}&grupo=${encodeURIComponent(grupo.trim())}&jornada=${encodeURIComponent(jornada.trim())}`
+      );
+      if (directRes.ok) {
+        const directData = await directRes.json();
+        const pageProps = directData?.pageProps || {};
+        const standingsRaw = pageProps.standings || {};
+        const roundsRaw = pageProps.rounds || {};
+        const host = standingsRaw.host || 'https://appweb.rffm.es/';
+
+        const formatUrl = (raw?: string | null): string | null => {
+          if (!raw) return null;
+          if (raw.startsWith('http')) return raw;
+          return `${host.replace(/\/$/, '')}/${raw.replace(/^\//, '')}`;
+        };
+
+        const clasificacionList: ClasificacionEquipo[] = (standingsRaw.clasificacion || []).map((item: any) => {
+          const gf = parseInt(item.goles_a_favor || '0', 10) || 0;
+          const gc = parseInt(item.goles_en_contra || '0', 10) || 0;
+          const diff = gf - gc;
+          return {
+            posicion: String(item.posicion || ''),
+            codequipo: String(item.codequipo || ''),
+            nombre: String(item.nombre || ''),
+            escudo: formatUrl(item.url_img),
+            color: item.color || null,
+            puntos: String(item.puntos ?? '0'),
+            jugados: String(item.jugados ?? '0'),
+            ganados: String(item.ganados ?? '0'),
+            empatados: String(item.empatados ?? '0'),
+            perdidos: String(item.perdidos ?? '0'),
+            goles_a_favor: String(gf),
+            goles_en_contra: String(gc),
+            diferencia_goles: diff > 0 ? `+${diff}` : String(diff),
+            puntos_sancion: item.puntos_sancion != null ? String(item.puntos_sancion) : '0',
+            jugados_casa: item.jugados_casa != null ? String(item.jugados_casa) : null,
+            ganados_casa: item.ganados_casa != null ? String(item.ganados_casa) : null,
+            empatados_casa: item.empatados_casa != null ? String(item.empatados_casa) : null,
+            perdidos_casa: item.perdidos_casa != null ? String(item.perdidos_casa) : null,
+            puntos_local: item.puntos_local != null ? String(item.puntos_local) : null,
+            jugados_fuera: item.jugados_fuera != null ? String(item.jugados_fuera) : null,
+            ganados_fuera: item.ganados_fuera != null ? String(item.ganados_fuera) : null,
+            empatados_fuera: item.empatados_fuera != null ? String(item.empatados_fuera) : null,
+            perdidos_fuera: item.perdidos_fuera != null ? String(item.perdidos_fuera) : null,
+            puntos_visitante: item.puntos_visitante != null ? String(item.puntos_visitante) : null,
+            racha_partidos: (item.racha_partidos || []).map((r: any) => ({
+              tipo: String(r.tipo || ''),
+              color: String(r.color || '#888888'),
+            })),
+          };
+        });
+
+        const jornadasDisponibles: JornadaInfo[] = (roundsRaw.jornadas || []).map((j: any) => ({
+          codjornada: String(j.codjornada || ''),
+          nombre: String(j.nombre || j.codjornada || ''),
+          fecha_jornada: j.fecha_jornada || null,
+        }));
+
+        return {
+          temporada,
+          competicion: String(standingsRaw.competicion || ''),
+          codigo_competicion: String(standingsRaw.codigo_competicion || competicion),
+          grupo: String(standingsRaw.grupo || ''),
+          codigo_grupo: String(standingsRaw.codigo_grupo || grupo),
+          jornada: String(standingsRaw.jornada || jornada),
+          fecha_jornada: standingsRaw.fecha_jornada || null,
+          current_round: roundsRaw.currentRound != null ? parseInt(roundsRaw.currentRound, 10) : null,
+          total_jornadas: jornadasDisponibles.length,
+          jornadas_disponibles: jornadasDisponibles,
+          promociones: (standingsRaw.promociones || []).map((p: any) => ({
+            orden: String(p.orden || ''),
+            nombre_promocion: String(p.nombre_promocion || ''),
+            color_promocion: String(p.color_promocion || '#ffffff'),
+          })),
+          clasificacion: clasificacionList,
+        };
+      }
+    } catch {
+      // Ignorar fallback
+    }
+    throw error;
+  }
+}
+
+export async function searchTeams(
+  query: string,
+  categoria?: string
+): Promise<SearchTeamsResponse> {
+  const url = new URL(`${BASE_URL}/api/teams/search`);
+  url.searchParams.set('query', query.trim());
+  if (categoria && categoria.trim()) {
+    url.searchParams.set('categoria', categoria.trim());
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Status ${response.status}`);
+  return await response.json();
+}
+
 
 
 

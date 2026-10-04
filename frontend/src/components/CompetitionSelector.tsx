@@ -1,6 +1,6 @@
 import React from 'react';
 import { Season, GameType, Competition, Group, EquipoGrupo } from '../types';
-import { Calendar, Trophy, ChevronDown, Layers, Award, Users2, Shield, Loader2, Star } from 'lucide-react';
+import { Calendar, Trophy, ChevronDown, Layers, Award, Users2, Shield, Loader2, Star, Sparkles } from 'lucide-react';
 
 interface CompetitionSelectorProps {
   seasons: Season[];
@@ -23,6 +23,7 @@ interface CompetitionSelectorProps {
   isLoadingGroups: boolean;
   isCurrentFavorite?: boolean;
   onToggleFavorite?: () => void;
+  onOpenSmartSearch?: () => void;
 }
 
 export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
@@ -46,6 +47,7 @@ export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
   isLoadingGroups,
   isCurrentFavorite = false,
   onToggleFavorite,
+  onOpenSmartSearch,
 }) => {
 
   return (
@@ -77,6 +79,27 @@ export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
             )}
           </div>
         </div>
+
+        {/* Botón de Acceso Rápido / Búsqueda Mágica */}
+        {onOpenSmartSearch && (
+          <button
+            type="button"
+            onClick={onOpenSmartSearch}
+            className="w-full mb-4 py-2.5 px-3.5 bg-gradient-to-r from-red-600/20 via-slate-800 to-amber-500/10 hover:from-red-600/30 hover:to-amber-500/20 active:scale-[0.99] border border-red-500/30 hover:border-red-500/50 rounded-2xl flex items-center justify-between text-xs transition-all shadow-md group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-red-600 text-white flex items-center justify-center shadow-sm shadow-red-900/50">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-semibold text-slate-200 group-hover:text-white">
+                Búsqueda Rápida de Equipo
+              </span>
+            </div>
+            <span className="text-[10px] text-red-400 font-bold bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700/60">
+              Deducción automática
+            </span>
+          </button>
+        )}
 
         {isLoading ? (
           <div className="space-y-4 py-3">

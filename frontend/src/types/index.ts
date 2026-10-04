@@ -367,3 +367,85 @@ export interface PlayerDetail {
 export interface BuildIdResponse {
   build_id: string;
 }
+
+export interface Promocion {
+  orden: string;
+  nombre_promocion: string;
+  color_promocion: string;
+}
+
+export interface RachaPartido {
+  tipo: string;
+  color: string;
+}
+
+export interface ClasificacionEquipo {
+  posicion: string;
+  codequipo: string;
+  nombre: string;
+  escudo?: string | null;
+  color?: string | null;
+  puntos: string;
+  jugados: string;
+  ganados: string;
+  empatados: string;
+  perdidos: string;
+  goles_a_favor: string;
+  goles_en_contra: string;
+  diferencia_goles: string;
+  puntos_sancion?: string | null;
+  jugados_casa?: string | null;
+  ganados_casa?: string | null;
+  empatados_casa?: string | null;
+  perdidos_casa?: string | null;
+  puntos_local?: string | null;
+  jugados_fuera?: string | null;
+  ganados_fuera?: string | null;
+  empatados_fuera?: string | null;
+  perdidos_fuera?: string | null;
+  puntos_visitante?: string | null;
+  racha_partidos: RachaPartido[];
+}
+
+export interface JornadaInfo {
+  codjornada: string;
+  nombre: string;
+  fecha_jornada?: string | null;
+}
+
+export interface ClasificacionResponse {
+  temporada: string;
+  competicion: string;
+  codigo_competicion: string;
+  grupo: string;
+  codigo_grupo: string;
+  jornada: string;
+  fecha_jornada?: string | null;
+  current_round?: number | null;
+  total_jornadas: number;
+  jornadas_disponibles: JornadaInfo[];
+  promociones: Promocion[];
+  clasificacion: ClasificacionEquipo[];
+}
+
+export interface DeduceTeamResult {
+  codigo_equipo: string;
+  nombre_equipo: string;
+  categoria: string;
+  codigo_club: string;
+  nombre_club: string;
+  escudo_club?: string | null;
+  codigo_competicion?: string | null;
+  nombre_competicion?: string | null;
+  codigo_grupo?: string | null;
+  nombre_grupo?: string | null;
+  codigo_tipo_juego?: string | null;
+  codigo_temporada?: string | null;
+}
+
+export interface SearchTeamsResponse {
+  total: number;
+  teams: DeduceTeamResult[];
+}
+
+

@@ -478,4 +478,106 @@ class BuildIdResponse(BaseModel):
     build_id: str = Field(..., description="Identificador buildId de Next.js vigente")
 
 
+class Promocion(BaseModel):
+    """Modelo para representar promociones (ascensos, descensos) de una competición."""
+    model_config = ConfigDict(frozen=True)
+
+    orden: str = Field(..., description="Orden de la promoción")
+    nombre_promocion: str = Field(..., description="Nombre de la promoción (ej. ASCENSOS)")
+    color_promocion: str = Field(..., description="Color hexadecimal representativo")
+
+
+class RachaPartido(BaseModel):
+    """Modelo para representar el resultado de un partido reciente en la racha."""
+    model_config = ConfigDict(frozen=True)
+
+    tipo: str = Field(..., description="Resultado (G=Ganado, E=Empatado, P=Perdido)")
+    color: str = Field(..., description="Color representativo del resultado")
+
+
+class ClasificacionEquipo(BaseModel):
+    """Modelo para representar la posición y estadísticas de un equipo en la clasificación."""
+    model_config = ConfigDict(frozen=True)
+
+    posicion: str = Field(..., description="Posición en la tabla clasificatoria")
+    codequipo: str = Field(..., description="Código identificador del equipo")
+    nombre: str = Field(..., description="Nombre oficial del equipo")
+    escudo: Optional[str] = Field(default=None, description="URL del escudo oficial")
+    color: Optional[str] = Field(default=None, description="Color de promoción o descenso")
+    puntos: str = Field(..., description="Puntos totales")
+    jugados: str = Field(..., description="Partidos jugados")
+    ganados: str = Field(..., description="Partidos ganados")
+    empatados: str = Field(..., description="Partidos empatados")
+    perdidos: str = Field(..., description="Partidos perdidos")
+    goles_a_favor: str = Field(..., description="Goles a favor")
+    goles_en_contra: str = Field(..., description="Goles en contra")
+    diferencia_goles: str = Field(..., description="Diferencia de goles (favor - contra)")
+    puntos_sancion: Optional[str] = Field(default="0", description="Puntos de sanción")
+    jugados_casa: Optional[str] = Field(default=None, description="Partidos jugados como local")
+    ganados_casa: Optional[str] = Field(default=None, description="Partidos ganados como local")
+    empatados_casa: Optional[str] = Field(default=None, description="Partidos empatados como local")
+    perdidos_casa: Optional[str] = Field(default=None, description="Partidos perdidos como local")
+    puntos_local: Optional[str] = Field(default=None, description="Puntos obtenidos como local")
+    jugados_fuera: Optional[str] = Field(default=None, description="Partidos jugados como visitante")
+    ganados_fuera: Optional[str] = Field(default=None, description="Partidos ganados como visitante")
+    empatados_fuera: Optional[str] = Field(default=None, description="Partidos empatados como visitante")
+    perdidos_fuera: Optional[str] = Field(default=None, description="Partidos perdidos como visitante")
+    puntos_visitante: Optional[str] = Field(default=None, description="Puntos obtenidos como visitante")
+    racha_partidos: list[RachaPartido] = Field(default_factory=list, description="Últimos resultados del equipo")
+
+
+class JornadaInfo(BaseModel):
+    """Modelo básico para representar una jornada disponible en la clasificación."""
+    model_config = ConfigDict(frozen=True)
+
+    codjornada: str = Field(..., description="Número o identificador de jornada")
+    nombre: str = Field(..., description="Nombre descriptivo de la jornada")
+    fecha_jornada: Optional[str] = Field(default=None, description="Fecha de la jornada")
+
+
+class ClasificacionResponse(BaseModel):
+    """Modelo de respuesta para la clasificación oficial de un grupo en una jornada."""
+    model_config = ConfigDict(frozen=True)
+
+    temporada: str = Field(..., description="Código de temporada")
+    competicion: str = Field(..., description="Nombre de la competición")
+    codigo_competicion: str = Field(..., description="Código de la competición")
+    grupo: str = Field(..., description="Nombre del grupo")
+    codigo_grupo: str = Field(..., description="Código del grupo")
+    jornada: str = Field(..., description="Jornada consultada")
+    fecha_jornada: Optional[str] = Field(default=None, description="Fecha de la jornada consultada")
+    current_round: Optional[int] = Field(default=None, description="Jornada actual de la competición")
+    total_jornadas: int = Field(default=0, description="Total de jornadas disponibles")
+    jornadas_disponibles: list[JornadaInfo] = Field(default_factory=list, description="Listado de jornadas disponibles")
+    promociones: list[Promocion] = Field(default_factory=list, description="Zonas de ascenso y descenso")
+    clasificacion: list[ClasificacionEquipo] = Field(default_factory=list, description="Tabla de clasificación")
+
+
+class DeduceTeamResult(BaseModel):
+    """Modelo para representar un equipo con competición y grupo deducidos."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_equipo: str = Field(..., description="Código identificador del equipo")
+    nombre_equipo: str = Field(..., description="Nombre del equipo")
+    categoria: str = Field(..., description="Categoría federativa")
+    codigo_club: str = Field(..., description="Código del club")
+    nombre_club: str = Field(..., description="Nombre oficial del club")
+    escudo_club: Optional[str] = Field(default=None, description="Escudo oficial del club")
+    codigo_competicion: Optional[str] = Field(default=None, description="Código de la competición oficial")
+    nombre_competicion: Optional[str] = Field(default=None, description="Nombre de la competición")
+    codigo_grupo: Optional[str] = Field(default=None, description="Código del grupo")
+    nombre_grupo: Optional[str] = Field(default=None, description="Nombre del grupo")
+    codigo_tipo_juego: Optional[str] = Field(default="1", description="Tipo de juego (1: F-11, 2: F-7)")
+    codigo_temporada: Optional[str] = Field(default="22", description="Código de la temporada")
+
+
+class SearchTeamsResponse(BaseModel):
+    """Respuesta para búsqueda asistida de equipos con competición y grupo."""
+    model_config = ConfigDict(frozen=True)
+
+    total: int = Field(..., description="Total de equipos encontrados")
+    teams: list[DeduceTeamResult] = Field(default_factory=list, description="Listado de equipos deducidos")
+
+
+
 

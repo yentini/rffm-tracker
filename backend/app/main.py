@@ -10,6 +10,7 @@ from app.schemas import (
     ActaResponse,
     CalendarioResponse,
     BuildIdResponse,
+    ClasificacionResponse,
     ClubDetail,
     ClubsResponse,
     CompetitionsResponse,
@@ -18,6 +19,7 @@ from app.schemas import (
     HealthResponse,
     ListaPartidosResponse,
     PlayerDetail,
+    SearchTeamsResponse,
     SeasonsResponse,
     TeamDetail,
 )
@@ -198,6 +200,36 @@ async def get_calendario(
 
 
 @app.get(
+    "/api/clasificacion",
+    response_model=ClasificacionResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Competición"],
+    summary="Obtener clasificación oficial por grupo y jornada",
+)
+async def get_clasificacion(
+    temporada: str = Query(..., description="Código de temporada (ej. 22)"),
+    tipojuego: str = Query(..., description="Código de modalidad de fútbol (ej. 1)"),
+    competicion: str = Query(..., description="Código de la competición (ej. 26737751)"),
+    grupo: str = Query(..., description="Código del grupo (ej. 26737755)"),
+    jornada: str = Query(..., description="Número de jornada (ej. 1, 2)"),
+) -> ClasificacionResponse:
+    """Obtiene la clasificación oficial completa de un grupo en una jornada específica."""
+    try:
+        return await rfef_client.get_clasificacion(
+            temporada=temporada,
+            tipojuego=tipojuego,
+            competicion=competicion,
+            grupo=grupo,
+            jornada=jornada,
+        )
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al obtener clasificación desde la RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
     "/api/acta-partido",
     response_model=ActaResponse,
     status_code=status.HTTP_200_OK,
@@ -282,6 +314,28 @@ async def get_club_detail(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al consultar ficha de club en RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/teams/search",
+    response_model=SearchTeamsResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Equipos"],
+    summary="Búsqueda asistida de equipos deduciendo competición y grupo",
+)
+async def search_teams(
+    query: str = Query(..., min_length=2, description="Nombre del equipo o club (ej. Pozuelo, Adarve Cadete)"),
+    categoria: Optional[str] = Query(None, description="Filtro opcional de categoría (ej. cadete, infantil)"),
+) -> SearchTeamsResponse:
+    """Busca equipos y deduce automáticamente su competición oficial y grupo en la RFFM."""
+    try:
+        teams = await rfef_client.search_and_deduce_teams(query=query, categoria=categoria)
+        return SearchTeamsResponse(total=len(teams), teams=teams)
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error en la búsqueda y deducción de equipos: {exc}",
         ) from exc
 
 
