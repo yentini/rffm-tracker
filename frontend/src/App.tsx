@@ -21,6 +21,8 @@ import {
   isFavorite,
   removeFavorite,
   toggleFavorite,
+  moveFavorite,
+  setPrimaryFavorite,
 } from './services/favorites';
 import {
   ActaPartido,
@@ -42,16 +44,19 @@ export function App() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
 
-  const [selectedSeason, setSelectedSeason] = useState<string>('');
-  const [selectedGameType, setSelectedGameType] = useState<string>('');
-  const [selectedCompetition, setSelectedCompetition] = useState<string>('');
-  const [selectedGroup, setSelectedGroup] = useState<string>('');
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
-
-  const [calendario, setCalendario] = useState<CalendarioResponse | null>(null);
-
   // Estado para equipos favoritos almacenados en localStorage
   const [favorites, setFavorites] = useState<FavoriteTeam[]>(() => getFavorites());
+
+  // Al iniciar una nueva sesión, si existen favoritos, preseleccionamos el primer equipo por defecto
+  const initialFavorite = favorites.length > 0 ? favorites[0] : null;
+
+  const [selectedSeason, setSelectedSeason] = useState<string>(() => initialFavorite?.seasonId || '');
+  const [selectedGameType, setSelectedGameType] = useState<string>(() => initialFavorite?.gameTypeId || '');
+  const [selectedCompetition, setSelectedCompetition] = useState<string>(() => initialFavorite?.competitionId || '');
+  const [selectedGroup, setSelectedGroup] = useState<string>(() => initialFavorite?.groupId || '');
+  const [selectedTeam, setSelectedTeam] = useState<string>(() => initialFavorite?.teamId || '');
+
+  const [calendario, setCalendario] = useState<CalendarioResponse | null>(null);
 
   // Estado para la pestaña activa en la barra de navegación inferior
   const [activeTab, setActiveTab] = useState<string>('partidos');
@@ -312,6 +317,16 @@ export function App() {
     setFavorites(updated);
   };
 
+  const handleMoveFavorite = (fromIndex: number, toIndex: number) => {
+    const updated = moveFavorite(fromIndex, toIndex);
+    setFavorites(updated);
+  };
+
+  const handleSetPrimaryFavorite = (teamId: string, competitionId: string, groupId: string) => {
+    const updated = setPrimaryFavorite(teamId, competitionId, groupId);
+    setFavorites(updated);
+  };
+
   // Seleccionar favorito para cargar directamente toda su información
   const handleSelectFavorite = (fav: FavoriteTeam) => {
     setSelectedSeason(fav.seasonId);
@@ -437,6 +452,8 @@ export function App() {
               favorites={favorites}
               onSelectFavorite={handleSelectFavorite}
               onRemoveFavorite={handleRemoveFavorite}
+              onMoveFavorite={handleMoveFavorite}
+              onSetPrimaryFavorite={handleSetPrimaryFavorite}
               onGoToMatches={() => setActiveTab('partidos')}
             />
           )}

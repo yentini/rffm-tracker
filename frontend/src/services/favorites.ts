@@ -108,3 +108,41 @@ export function toggleFavorite(favorite: FavoriteTeam): {
     return { isFav: true, favorites: updated };
   }
 }
+
+/**
+ * Reordena un favorito desplazándolo de una posición a otra.
+ */
+export function moveFavorite(fromIndex: number, toIndex: number): FavoriteTeam[] {
+  const current = getFavorites();
+  if (
+    fromIndex < 0 ||
+    fromIndex >= current.length ||
+    toIndex < 0 ||
+    toIndex >= current.length ||
+    fromIndex === toIndex
+  ) {
+    return current;
+  }
+
+  const updated = [...current];
+  const [movedItem] = updated.splice(fromIndex, 1);
+  updated.splice(toIndex, 0, movedItem);
+  persistFavorites(updated);
+  return updated;
+}
+
+/**
+ * Establece un equipo como el principal (posición 0), haciéndolo el equipo por defecto al iniciar sesión.
+ */
+export function setPrimaryFavorite(
+  teamId: string,
+  competitionId: string,
+  groupId: string
+): FavoriteTeam[] {
+  const current = getFavorites();
+  const index = current.findIndex(
+    (f) => f.teamId === teamId && f.competitionId === competitionId && f.groupId === groupId
+  );
+  if (index <= 0) return current;
+  return moveFavorite(index, 0);
+}

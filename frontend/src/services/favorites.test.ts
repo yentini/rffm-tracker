@@ -6,6 +6,8 @@ import {
   toggleFavorite,
   isFavorite,
   getFavoriteKey,
+  moveFavorite,
+  setPrimaryFavorite,
 } from './favorites';
 import { FavoriteTeam } from '../types';
 
@@ -115,5 +117,33 @@ describe('Favorites Service (localStorage cache)', () => {
     mockStorage['rfef_tracker_favorite_teams'] = '{ corrupt json';
     const result = getFavorites();
     expect(result).toEqual([]);
+  });
+
+  it('debe permitir mover y reordenar equipos favoritos', () => {
+    addFavorite(sampleTeam1);
+    addFavorite(sampleTeam2);
+
+    // sampleTeam2 está en 0 y sampleTeam1 en 1
+    const beforeMove = getFavorites();
+    expect(beforeMove[0].teamId).toBe('1002');
+    expect(beforeMove[1].teamId).toBe('1001');
+
+    // Mover posición 1 a posición 0
+    const afterMove = moveFavorite(1, 0);
+    expect(afterMove[0].teamId).toBe('1001');
+    expect(afterMove[1].teamId).toBe('1002');
+
+    // Comprobar persistencia en localStorage
+    expect(getFavorites()[0].teamId).toBe('1001');
+  });
+
+  it('debe permitir establecer un equipo como principal en la primera posición', () => {
+    addFavorite(sampleTeam1);
+    addFavorite(sampleTeam2);
+
+    // sampleTeam1 está actualmente en la posición 1
+    const updated = setPrimaryFavorite('1001', '2001', '3001');
+    expect(updated[0].teamId).toBe('1001');
+    expect(updated[1].teamId).toBe('1002');
   });
 });
