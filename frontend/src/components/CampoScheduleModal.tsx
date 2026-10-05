@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { CampoDetailResponse } from '../types';
-import { fetchCampoDetail, searchCampos } from '../services/api';
+import { fetchCampoDetail, searchCampos, fetchActaPartido } from '../services/api';
 import {
   X,
   MapPin,
@@ -19,6 +19,13 @@ interface CampoScheduleModalProps {
   selectedDateFilter?: string | null;
   onClose: () => void;
   onSelectActa?: (codacta: string) => void;
+}
+
+interface MatchNameOverride {
+  local: string;
+  visitante: string;
+  golesCasa?: string | null;
+  golesFuera?: string | null;
 }
 
 /**
@@ -42,6 +49,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDate, setActiveDate] = useState<string>('all');
+  const [matchOverrides, setMatchOverrides] = useState<Record<string, MatchNameOverride>>({});
   const dateScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -242,6 +250,41 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
     }
   }, [activeDate, isLoading, availableDates]);
 
+  // Sincronizar nombres reales y actualizados desde el acta oficial para los partidos visibles
+  useEffect(() => {
+    if (!filteredPartidos || filteredPartidos.length === 0) return;
+
+    let isCurrent = true;
+    const pendingPartidos = filteredPartidos.filter(
+      (p) => p.codacta && !matchOverrides[p.codacta]
+    );
+
+    if (pendingPartidos.length === 0) return;
+
+    pendingPartidos.forEach(async (p) => {
+      try {
+        const acta = await fetchActaPartido(p.codacta);
+        if (isCurrent && acta && (acta.equipo_local || acta.equipo_visitante)) {
+          setMatchOverrides((prev) => ({
+            ...prev,
+            [p.codacta]: {
+              local: acta.equipo_local || p.nombre_equipo_casa,
+              visitante: acta.equipo_visitante || p.nombre_equipo_fuera,
+              golesCasa: acta.goles_local,
+              golesFuera: acta.goles_visitante,
+            },
+          }));
+        }
+      } catch {
+        // Si no hay acta oficial publicada (partido futuro sin borrador arbitral), se mantiene el nombre base
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [filteredPartidos, matchOverrides]);
+
   return (
     <div
       role="dialog"
@@ -400,11 +443,17 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
           {!isLoading && !error && filteredPartidos.length > 0 && (
             <div className="space-y-2.5">
               {filteredPartidos.map((partido, idx) => {
+                const override = partido.codacta ? matchOverrides[partido.codacta] : undefined;
+                const localName = override?.local || partido.nombre_equipo_casa;
+                const visitorName = override?.visitante || partido.nombre_equipo_fuera;
+                const golesCasa = override?.golesCasa !== undefined ? override.golesCasa : partido.goles_casa;
+                const golesFuera = override?.golesFuera !== undefined ? override.golesFuera : partido.goles_fuera;
+
                 const hasScore =
-                  partido.goles_casa != null &&
-                  partido.goles_casa !== '' &&
-                  partido.goles_fuera != null &&
-                  partido.goles_fuera !== '';
+                  golesCasa != null &&
+                  golesCasa !== '' &&
+                  golesFuera != null &&
+                  golesFuera !== '';
 
                 return (
                   <div
@@ -449,7 +498,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                           {fixEscudo(partido.escudo_equipo_casa) ? (
                             <img
                               src={fixEscudo(partido.escudo_equipo_casa)!}
-                              alt={partido.nombre_equipo_casa}
+                              alt={localName}
                               className="w-full h-full object-contain"
                               loading="lazy"
                             />
@@ -458,7 +507,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                           )}
                         </div>
                         <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors truncate">
-                          {partido.nombre_equipo_casa}
+                          {localName}
                         </span>
                       </div>
 
@@ -466,9 +515,9 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                       <div className="col-span-2 flex justify-center">
                         {hasScore ? (
                           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg text-xs font-extrabold text-white">
-                            <span>{partido.goles_casa}</span>
+                            <span>{golesCasa}</span>
                             <span className="text-slate-600">:</span>
-                            <span>{partido.goles_fuera}</span>
+                            <span>{golesFuera}</span>
                           </div>
                         ) : (
                           <span className="text-[10px] font-mono text-slate-500 bg-slate-900/90 border border-slate-800/80 px-1.5 py-0.5 rounded">
@@ -480,13 +529,13 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                       {/* Visitante */}
                       <div className="col-span-5 flex items-center justify-end gap-2 min-w-0 text-right">
                         <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors truncate">
-                          {partido.nombre_equipo_fuera}
+                          {visitorName}
                         </span>
                         <div className="w-7 h-7 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center p-1 shrink-0 overflow-hidden">
                           {fixEscudo(partido.escudo_equipo_fuera) ? (
                             <img
                               src={fixEscudo(partido.escudo_equipo_fuera)!}
-                              alt={partido.nombre_equipo_fuera}
+                              alt={visitorName}
                               className="w-full h-full object-contain"
                               loading="lazy"
                             />

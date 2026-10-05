@@ -105,6 +105,7 @@ class RFEFClient:
         self.verify_ssl = verify_ssl
         self._cached_page_props: Optional[dict[str, Any]] = None
         self._club_campos_cache: dict[str, list[Any]] = {}
+        self._team_names_cache: dict[str, str] = {}
 
     @property
     def calendario_url(self) -> str:
@@ -462,6 +463,10 @@ class RFEFClient:
                             hora=eq.get("hora"),
                         )
                     )
+                    if eq.get("codigo_equipo_local") and eq.get("equipo_local"):
+                        self._team_names_cache[str(eq["codigo_equipo_local"])] = str(eq["equipo_local"])
+                    if eq.get("codigo_equipo_visitante") and eq.get("equipo_visitante"):
+                        self._team_names_cache[str(eq["codigo_equipo_visitante"])] = str(eq["equipo_visitante"])
 
                 codjornada = str(item.get("codjornada", index + 1))
                 try:
@@ -547,6 +552,11 @@ class RFEFClient:
             game_dict = dict(game_data)
             game_dict["escudo_local"] = fix_escudo_url(game_dict.get("escudo_local"))
             game_dict["escudo_visitante"] = fix_escudo_url(game_dict.get("escudo_visitante"))
+
+            if game_dict.get("codigo_equipo_local") and game_dict.get("equipo_local"):
+                self._team_names_cache[str(game_dict["codigo_equipo_local"])] = str(game_dict["equipo_local"])
+            if game_dict.get("codigo_equipo_visitante") and game_dict.get("equipo_visitante"):
+                self._team_names_cache[str(game_dict["codigo_equipo_visitante"])] = str(game_dict["equipo_visitante"])
 
             return ActaPartido.model_validate(game_dict)
         except Exception as error:
@@ -711,14 +721,15 @@ class RFEFClient:
             equipos: list[ClubEquipo] = []
             for eq in equipos_raw:
                 if isinstance(eq, dict):
-                    equipos.append(
-                        ClubEquipo(
-                            codigo_equipo=str(eq.get("codigo_equipo", "")),
-                            nombre_equipo=str(eq.get("nombre_equipo", "")),
-                            categoria=str(eq.get("categoria", "")),
-                            en_competicion=str(eq.get("en_competicion", "1")),
-                        )
+                    eq_obj = ClubEquipo(
+                        codigo_equipo=str(eq.get("codigo_equipo", "")),
+                        nombre_equipo=str(eq.get("nombre_equipo", "")),
+                        categoria=str(eq.get("categoria", "")),
+                        en_competicion=str(eq.get("en_competicion", "1")),
                     )
+                    equipos.append(eq_obj)
+                    if eq_obj.codigo_equipo and eq_obj.nombre_equipo:
+                        self._team_names_cache[eq_obj.codigo_equipo] = eq_obj.nombre_equipo
 
             return ClubDetail(
                 codigo=str(club_raw.get("codigo", codficha)),
@@ -1611,6 +1622,20 @@ class RFEFClient:
             partidos_list: list[PartidoCampo] = []
 
             for p in partidos_raw:
+                casa_code = str(p.get("codequipo_casa")) if p.get("codequipo_casa") else None
+                fuera_code = str(p.get("codequipo_fuera")) if p.get("codequipo_fuera") else None
+
+                nombre_casa = (
+                    self._team_names_cache.get(casa_code)
+                    if casa_code and casa_code in self._team_names_cache
+                    else str(p.get("nombre_equipo_casa", "Local"))
+                )
+                nombre_fuera = (
+                    self._team_names_cache.get(fuera_code)
+                    if fuera_code and fuera_code in self._team_names_cache
+                    else str(p.get("nombre_equipo_fuera", "Visitante"))
+                )
+
                 partidos_list.append(
                     PartidoCampo(
                         codacta=str(p.get("codacta", "")),
@@ -1618,16 +1643,16 @@ class RFEFClient:
                         nombre_grupo=p.get("nombre_grupo"),
                         nombre_competicion=p.get("nombre_competicion"),
                         jornada=str(p.get("jornada")) if p.get("jornada") else None,
-                        codequipo_casa=str(p.get("codequipo_casa")) if p.get("codequipo_casa") else None,
-                        nombre_equipo_casa=str(p.get("nombre_equipo_casa", "Local")),
+                        codequipo_casa=casa_code,
+                        nombre_equipo_casa=nombre_casa,
                         escudo_equipo_casa=fix_escudo_url(p.get("escudo_equipo_casa")),
                         goles_casa=(
                             str(p.get("goles_casa"))
                             if p.get("goles_casa") != "" and p.get("goles_casa") is not None
                             else None
                         ),
-                        codequipo_fuera=str(p.get("codequipo_fuera")) if p.get("codequipo_fuera") else None,
-                        nombre_equipo_fuera=str(p.get("nombre_equipo_fuera", "Visitante")),
+                        codequipo_fuera=fuera_code,
+                        nombre_equipo_fuera=nombre_fuera,
                         escudo_equipo_fuera=fix_escudo_url(p.get("escudo_equipo_fuera")),
                         goles_fuera=(
                             str(p.get("goles_fuera"))
