@@ -46,6 +46,28 @@ export const resolveFavoriteCampoClub = (campo: { clubAsociado?: string | null; 
   return null;
 };
 
+export const resolveFavoriteCampoDireccion = (campo: {
+  direccion?: string | null;
+  nombreCampo?: string;
+  localidad?: string | null;
+}): string => {
+  if (campo.direccion && campo.direccion.trim() && campo.direccion.trim() !== '0') {
+    return campo.direccion.trim();
+  }
+  const nom = (campo.nombreCampo || '').toUpperCase();
+  if (nom.includes('GANAPANES') || nom.includes('ADARVE')) return 'C/ Becerrea, 4 (Vereda de Ganapanes)';
+  if (nom.includes('SAN ROQUE')) return 'Av. Monforte de Lemos, 13';
+  if (nom.includes('COTORRUELO')) return 'Vía Lusitana, 5';
+  if (nom.includes('VALDEBEBAS') || nom.includes('CIUDAD REAL MADRID')) return 'Camino de Sintra, s/n';
+  if (nom.includes('CANAL DE ISABEL')) return 'Av. de Filipinas, 54';
+  if (nom.includes('LA ELIPA')) return 'C/ Alcalde Garrido Juaristi, 17';
+  if (nom.includes('VALDELASFUENTES')) return 'C/ Manuel de Falla, 89';
+  if (campo.localidad && campo.localidad.trim() && campo.localidad.trim() !== '0' && campo.localidad.trim().toLowerCase() !== 'madrid') {
+    return campo.localidad.trim();
+  }
+  return '';
+};
+
 export const FavoritesView: React.FC<FavoritesViewProps> = ({
   favorites,
   favoriteCampos,
@@ -387,6 +409,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
               <div className="divide-y divide-slate-800/60">
                 {favoriteCampos.map((campo) => {
                   const clubAsociado = resolveFavoriteCampoClub(campo);
+                  const direccion = resolveFavoriteCampoDireccion(campo);
 
                   return (
                     <div
@@ -421,7 +444,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           </button>
                         </div>
 
-                        {/* Línea 2: De dónde es sede + Dirección / Localidad */}
+                        {/* Línea 2: De dónde es sede + Dirección */}
                         <div className="pl-0 sm:pl-[44px] min-w-0 space-y-1">
                           {clubAsociado && (
                             <div className="flex items-center gap-1.5 flex-wrap text-xs">
@@ -432,10 +455,9 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                             </div>
                           )}
 
-                          {(campo.direccion || campo.localidad) && (
+                          {direccion && (
                             <p className="text-xs text-slate-400 truncate">
-                              {campo.direccion}
-                              {campo.localidad && campo.direccion ? <span> • {campo.localidad}</span> : campo.localidad}
+                              {direccion}
                             </p>
                           )}
                         </div>

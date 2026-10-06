@@ -112,6 +112,12 @@ class RFEFClient:
             "410": "C.D. SAN ROQUE E.F.F.",
             "203": "A.D. FUNDACION",
         }
+        self._campo_to_address_cache: dict[str, str] = {
+            "14610183": "C/ Becerrea, 4 (Vereda de Ganapanes)",
+            "7685149": "C/ Becerrea, 4 (Vereda de Ganapanes)",
+            "410": "Av. Monforte de Lemos, 13",
+            "203": "C/ Monasterio de El Escorial",
+        }
 
     @property
     def calendario_url(self) -> str:
@@ -1501,6 +1507,27 @@ class RFEFClient:
             return "GETAFE C.F."
         return None
 
+    def _deduce_direccion_for_campo(self, codigo: str, nombre: str) -> Optional[str]:
+        clean_cod = str(codigo).strip()
+        if clean_cod in self._campo_to_address_cache:
+            return self._campo_to_address_cache[clean_cod]
+        nom_upper = strip_accents(nombre).upper()
+        if "GANAPANES" in nom_upper or "ADARVE" in nom_upper:
+            return "C/ Becerrea, 4 (Vereda de Ganapanes)"
+        if "SAN ROQUE" in nom_upper:
+            return "Av. Monforte de Lemos, 13"
+        if "COTORRUELO" in nom_upper:
+            return "Vía Lusitana, 5"
+        if "VALDEBEBAS" in nom_upper or "CIUDAD REAL MADRID" in nom_upper:
+            return "Camino de Sintra, s/n (Valdebebas)"
+        if "CANAL DE ISABEL" in nom_upper:
+            return "Av. de Filipinas, 54"
+        if "LA ELIPA" in nom_upper:
+            return "C/ Alcalde Garrido Juaristi, 17"
+        if "VALDELASFUENTES" in nom_upper:
+            return "C/ Manuel de Falla, 89 (Alcobendas)"
+        return None
+
     async def _search_campos_by_club_name(self, query: str) -> list[CampoItem]:
         """Busca clubes coincidentes y deduce las instalaciones o sedes donde disputan partidos sus equipos."""
         cache_key = query.lower().strip()
@@ -1551,10 +1578,15 @@ class RFEFClient:
                             clean_cod = str(c_cod).strip()
                             seen_campos.add(clean_cod)
                             self._campo_to_club_cache[clean_cod] = club.nombre
+                            dir_val = (
+                                self._campo_to_address_cache.get(clean_cod)
+                                or self._deduce_direccion_for_campo(clean_cod, str(c_nom or ""))
+                            )
                             results.append(
                                 CampoItem(
                                     codigo=clean_cod,
                                     nombre=str(c_nom or f"Campo {clean_cod}").strip(),
+                                    direccion=dir_val,
                                     localidad=loc or club.localidad,
                                     club_asociado=club.nombre,
                                 )
@@ -1615,6 +1647,13 @@ class RFEFClient:
                     continue
                 seen_codigos.add(cod)
                 nom = str(c.get("nombre", "")).strip()
+                dir_val = (
+                    c.get("direccion")
+                    or self._campo_to_address_cache.get(cod)
+                    or self._deduce_direccion_for_campo(cod, nom)
+                )
+                if dir_val:
+                    self._campo_to_address_cache[cod] = dir_val
                 club_asoc = (
                     c.get("club_asociado")
                     or self._campo_to_club_cache.get(cod)
@@ -1624,7 +1663,7 @@ class RFEFClient:
                     CampoItem(
                         codigo=cod,
                         nombre=nom,
-                        direccion=c.get("direccion"),
+                        direccion=dir_val,
                         codigo_postal=c.get("codigo_postal"),
                         localidad=c.get("localidad"),
                         provincia=c.get("provincia"),
@@ -1639,17 +1678,17 @@ class RFEFClient:
                 for cc in club_campos:
                     if cc.codigo in seen_codigos:
                         for idx, item in enumerate(campos_items):
-                            if item.codigo == cc.codigo and not item.club_asociado:
+                            if item.codigo == cc.codigo:
                                 campos_items[idx] = CampoItem(
                                     codigo=item.codigo,
                                     nombre=item.nombre,
-                                    direccion=item.direccion,
+                                    direccion=item.direccion or cc.direccion,
                                     codigo_postal=item.codigo_postal,
                                     localidad=item.localidad or cc.localidad,
                                     provincia=item.provincia,
                                     superficie=item.superficie,
                                     tipo_campo=item.tipo_campo,
-                                    club_asociado=cc.club_asociado,
+                                    club_asociado=cc.club_asociado or item.club_asociado,
                                 )
                     else:
                         seen_codigos.add(cc.codigo)
