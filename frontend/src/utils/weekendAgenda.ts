@@ -7,6 +7,7 @@ export interface WeekendMatchItem {
   favTeamName: string;
   favTeamShield?: string | null;
   competitionName: string;
+  categoryName?: string;
   groupName: string;
   jornadaNum: number;
   isLocal: boolean;
@@ -111,6 +112,28 @@ export function parseDateAndDay(fechaStr?: string | null): {
 }
 
 /**
+ * Extrae la categoría de edad (ej. Cadete, Infantil, Juvenil, etc.)
+ * a partir del nombre de la competición o del equipo.
+ */
+export function extractCategoryName(competitionName?: string, teamName?: string): string {
+  const text = `${competitionName || ''} ${teamName || ''}`.toLowerCase();
+
+  if (text.includes('prebenjamin') || text.includes('prebenjamín')) return 'Prebenjamín';
+  if (text.includes('benjamin') || text.includes('benjamín')) return 'Benjamín';
+  if (text.includes('alevin') || text.includes('alevín')) return 'Alevín';
+  if (text.includes('infantil')) return 'Infantil';
+  if (text.includes('cadete')) return 'Cadete';
+  if (text.includes('juvenil')) return 'Juvenil';
+  if (text.includes('debutante')) return 'Debutante';
+  if (text.includes('aficionado') || text.includes('aficionados')) return 'Aficionado';
+  if (text.includes('senior') || text.includes('sénior') || text.includes('federacion') || text.includes('federación')) return 'Senior';
+  if (text.includes('veteran')) return 'Veteranos';
+  if (text.includes('femenin')) return 'Femenino';
+
+  return competitionName?.trim() || '';
+}
+
+/**
  * Extrae el partido correspondiente a la jornada actual/próxima de un equipo favorito
  * a partir de los datos de su calendario.
  */
@@ -150,8 +173,8 @@ export function extractTeamWeekendMatch(
 
   const isLocal = match.codigo_equipo_local === fav.teamId;
   const parsed = parseDateAndDay(match.fecha);
-
   const horaLimpia = match.hora?.trim() || '--:--';
+  const categoryName = extractCategoryName(fav.competitionName, fav.teamName);
 
   return {
     id: `${fav.teamId}-${match.codacta || targetRoundNum}`,
@@ -160,6 +183,7 @@ export function extractTeamWeekendMatch(
     favTeamName: fav.teamName,
     favTeamShield: fav.teamShield,
     competitionName: fav.competitionName,
+    categoryName,
     groupName: fav.groupName,
     jornadaNum: targetRoundNum,
     isLocal,
@@ -218,10 +242,22 @@ export function processWeekendAgenda(matches: WeekendMatchItem[]): WeekendMatchI
 
         const diffMinutes = Math.abs(minutes1 - minutes2);
         if (diffMinutes < 90) {
+          const cat1 = m1.categoryName || extractCategoryName(m1.competitionName, m1.favTeamName);
+          const cat2 = m2.categoryName || extractCategoryName(m2.competitionName, m2.favTeamName);
+          const tag1 = cat1 ? ` (${cat1})` : '';
+          const tag2 = cat2 ? ` (${cat2})` : '';
+
           m1.hasTimeConflict = true;
-          m1.conflictDescription = `Coincidencia horaria con ${m2.favTeamName} (${m2.hora})`;
+          const msg1 = `${m2.favTeamName}${tag2} a las ${m2.hora}`;
+          m1.conflictDescription = m1.conflictDescription
+            ? `${m1.conflictDescription}, y con ${msg1}`
+            : `Coincidencia horaria con ${msg1}`;
+
           m2.hasTimeConflict = true;
-          m2.conflictDescription = `Coincidencia horaria con ${m1.favTeamName} (${m1.hora})`;
+          const msg2 = `${m1.favTeamName}${tag1} a las ${m1.hora}`;
+          m2.conflictDescription = m2.conflictDescription
+            ? `${m2.conflictDescription}, y con ${msg2}`
+            : `Coincidencia horaria con ${msg2}`;
         }
       }
     }

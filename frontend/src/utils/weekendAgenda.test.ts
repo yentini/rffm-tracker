@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseDateAndDay,
+  extractCategoryName,
   extractTeamWeekendMatch,
   processWeekendAgenda,
   WeekendMatchItem,
@@ -8,6 +9,21 @@ import {
 import { FavoriteTeam, CalendarioResponse } from '../types';
 
 describe('Weekend Agenda Utilities', () => {
+  describe('extractCategoryName', () => {
+    it('debe identificar categorías clásicas del fútbol base y senior', () => {
+      expect(extractCategoryName('PRIMERA CADETE')).toBe('Cadete');
+      expect(extractCategoryName('DIVISIÓN DE HONOR CADETE')).toBe('Cadete');
+      expect(extractCategoryName('SEGUNDA INFANTIL')).toBe('Infantil');
+      expect(extractCategoryName('PREFERENTE ALEVÍN')).toBe('Alevín');
+      expect(extractCategoryName('AUTONÓMICA BENJAMÍN')).toBe('Benjamín');
+      expect(extractCategoryName('PREBENJAMÍN FÚTBOL 7')).toBe('Prebenjamín');
+      expect(extractCategoryName('LIGA NACIONAL JUVENIL')).toBe('Juvenil');
+      expect(extractCategoryName('PRIMERA AFICIONADOS')).toBe('Aficionado');
+      expect(extractCategoryName('TERCERA FEDERACIÓN')).toBe('Senior');
+      expect(extractCategoryName('', 'Getafe CF Cadete B')).toBe('Cadete');
+    });
+  });
+
   describe('parseDateAndDay', () => {
     it('debe identificar un sábado correctamente', () => {
       // 2024-10-12 fue Sábado
@@ -121,7 +137,7 @@ describe('Weekend Agenda Utilities', () => {
           codacta: '2',
           favTeamId: 't2',
           favTeamName: 'Equipo Sabado Tarde',
-          competitionName: 'Comp',
+          competitionName: 'PRIMERA CADETE',
           groupName: 'Grp',
           jornadaNum: 1,
           isLocal: true,
@@ -139,7 +155,7 @@ describe('Weekend Agenda Utilities', () => {
           codacta: '3',
           favTeamId: 't3',
           favTeamName: 'Equipo Sabado Manana',
-          competitionName: 'Comp',
+          competitionName: 'SEGUNDA INFANTIL',
           groupName: 'Grp',
           jornadaNum: 1,
           isLocal: false,
@@ -162,9 +178,11 @@ describe('Weekend Agenda Utilities', () => {
       // Luego domingo
       expect(processed[2].favTeamName).toBe('Equipo Domingo');
 
-      // Comprobar detección de conflicto horario en sábado
+      // Comprobar detección de conflicto horario en sábado con categoría
       expect(processed[0].hasTimeConflict).toBe(true);
+      expect(processed[0].conflictDescription).toContain('Infantil');
       expect(processed[1].hasTimeConflict).toBe(true);
+      expect(processed[1].conflictDescription).toContain('Cadete');
       expect(processed[2].hasTimeConflict).toBeFalsy();
     });
   });

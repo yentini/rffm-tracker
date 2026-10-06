@@ -295,8 +295,13 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
                     <span className="font-bold text-white truncate">{m.favTeamName}</span>
+                    {m.categoryName && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/25 text-[10px] font-semibold shrink-0">
+                        {m.categoryName}
+                      </span>
+                    )}
                     <span className="text-[10px] text-slate-400 shrink-0">
-                      ({m.isLocal ? 'Juega como local' : 'Juega a domicilio'})
+                      ({m.isLocal ? 'Local' : 'Visitante'})
                     </span>
                   </div>
                   <span className="text-[10px] text-slate-400 truncate max-w-[140px] sm:max-w-[200px] hidden xs:inline sm:inline">
