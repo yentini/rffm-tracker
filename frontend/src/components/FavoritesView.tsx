@@ -32,6 +32,20 @@ interface FavoritesViewProps {
   onSelectCampoModal?: (codigoCampo?: string | null, nombreCampoFallback?: string | null) => void;
 }
 
+export const resolveFavoriteCampoClub = (campo: { clubAsociado?: string | null; nombreCampo?: string }): string | null => {
+  if (campo.clubAsociado && campo.clubAsociado.trim()) return campo.clubAsociado;
+  const nom = (campo.nombreCampo || '').toUpperCase();
+  if (nom.includes('GANAPANES') || nom.includes('ADARVE')) return 'A.D. UNION ADARVE';
+  if (nom.includes('SAN ROQUE')) return 'C.D. SAN ROQUE E.F.F.';
+  if (nom.includes('VALDEBEBAS') || nom.includes('CIUDAD REAL MADRID')) return 'REAL MADRID C.F.';
+  if (nom.includes('CERRO DEL ESPINO')) return 'ATLÉTICO DE MADRID';
+  if (nom.includes('CANAL DE ISABEL')) return 'C.D. BETIS SAN ISIDRO';
+  if (nom.includes('COTORRUELO')) return 'R.F.F.M. (Federativo)';
+  if (nom.includes('LA ELIPA')) return 'E.D. MORATALAZ';
+  if (nom.includes('VALDELASFUENTES') || nom.includes('ALCOBENDAS')) return 'ALCOBENDAS C.F.';
+  return null;
+};
+
 export const FavoritesView: React.FC<FavoritesViewProps> = ({
   favorites,
   favoriteCampos,
@@ -371,61 +385,61 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
               </div>
             ) : (
               <div className="divide-y divide-slate-800/60">
-                {favoriteCampos.map((campo) => (
-                  <div
-                    key={campo.codigoCampo}
-                    onClick={() => onSelectCampo(campo)}
-                    className="py-3.5 sm:py-4 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 sm:p-3 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer"
-                  >
-                    {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      {/* Línea 1: Icono + Nombre + Papelera en móvil */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
-                            <MapPin className="w-4 h-4 text-emerald-400" />
+                {favoriteCampos.map((campo) => {
+                  const clubAsociado = resolveFavoriteCampoClub(campo);
+
+                  return (
+                    <div
+                      key={campo.codigoCampo}
+                      onClick={() => onSelectCampo(campo)}
+                      className="py-3.5 sm:py-4 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 sm:p-3 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer"
+                    >
+                      {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        {/* Línea 1: Icono + Nombre + Papelera en móvil */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
+                              <MapPin className="w-4 h-4 text-emerald-400" />
+                            </div>
+                            <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-tight truncate">
+                              {campo.nombreCampo}
+                            </h4>
                           </div>
-                          <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-tight truncate">
-                            {campo.nombreCampo}
-                          </h4>
+
+                          {/* En móvil: Papelera a la derecha en la fila superior */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveFavoriteCampo(campo.codigoCampo);
+                            }}
+                            title="Eliminar de sedes favoritas"
+                            className="sm:hidden p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50 shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
 
-                        {/* En móvil: Papelera a la derecha en la fila superior */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveFavoriteCampo(campo.codigoCampo);
-                          }}
-                          title="Eliminar de sedes favoritas"
-                          className="sm:hidden p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50 shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Línea 2: De dónde es sede (o dirección/localidad) */}
-                      <div className="pl-0 sm:pl-[44px] min-w-0">
-                        {campo.clubAsociado ? (
-                          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-lg shrink-0">
-                              <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span>Sede de {campo.clubAsociado}</span>
-                            </span>
-                            {campo.localidad && (
-                              <span className="text-[11px] text-slate-400">
-                                • {campo.localidad}
+                        {/* Línea 2: De dónde es sede + Dirección / Localidad */}
+                        <div className="pl-0 sm:pl-[44px] min-w-0 space-y-1">
+                          {clubAsociado && (
+                            <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-lg shrink-0">
+                                <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span>Sede de {clubAsociado}</span>
                               </span>
-                            )}
-                          </div>
-                        ) : (campo.direccion || campo.localidad) ? (
-                          <p className="text-xs text-slate-400 truncate">
-                            {campo.direccion}
-                            {campo.localidad && campo.direccion ? <span> • {campo.localidad}</span> : campo.localidad}
-                          </p>
-                        ) : null}
+                            </div>
+                          )}
+
+                          {(campo.direccion || campo.localidad) && (
+                            <p className="text-xs text-slate-400 truncate">
+                              {campo.direccion}
+                              {campo.localidad && campo.direccion ? <span> • {campo.localidad}</span> : campo.localidad}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
                     {/* Línea 3 en móvil / Bloque derecho en PC: Botón Ver Agenda (+ Papelera en PC) */}
                     <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
@@ -456,7 +470,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             )}
           </div>

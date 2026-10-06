@@ -33,6 +33,20 @@ const POPULAR_SEDES = [
   'Alcobendas',
 ];
 
+export const resolveCampoClub = (campo: { club_asociado?: string | null; nombre?: string }): string | null => {
+  if (campo.club_asociado && campo.club_asociado.trim()) return campo.club_asociado;
+  const nom = (campo.nombre || '').toUpperCase();
+  if (nom.includes('GANAPANES') || nom.includes('ADARVE')) return 'A.D. UNION ADARVE';
+  if (nom.includes('SAN ROQUE')) return 'C.D. SAN ROQUE E.F.F.';
+  if (nom.includes('VALDEBEBAS') || nom.includes('CIUDAD REAL MADRID')) return 'REAL MADRID C.F.';
+  if (nom.includes('CERRO DEL ESPINO')) return 'ATLÉTICO DE MADRID';
+  if (nom.includes('CANAL DE ISABEL')) return 'C.D. BETIS SAN ISIDRO';
+  if (nom.includes('COTORRUELO')) return 'R.F.F.M. (Federativo)';
+  if (nom.includes('LA ELIPA')) return 'E.D. MORATALAZ';
+  if (nom.includes('VALDELASFUENTES') || nom.includes('ALCOBENDAS')) return 'ALCOBENDAS C.F.';
+  return null;
+};
+
 export const CamposView: React.FC<CamposViewProps> = ({
   onSelectActa,
   favoriteCampoIds = [],
@@ -186,6 +200,7 @@ export const CamposView: React.FC<CamposViewProps> = ({
           <div className="divide-y divide-slate-800/60 mt-4">
             {campos.map((campo) => {
               const isFav = favoriteCampoIds.includes(campo.codigo);
+              const clubAsociado = resolveCampoClub(campo);
 
               return (
                 <div
@@ -226,26 +241,23 @@ export const CamposView: React.FC<CamposViewProps> = ({
                       )}
                     </div>
 
-                    {/* Línea 2: De dónde es sede (o dirección/localidad si no tiene club asociado) */}
-                    <div className="pl-0 sm:pl-[44px] min-w-0">
-                      {campo.club_asociado ? (
+                    {/* Línea 2: De dónde es sede + Dirección / Localidad */}
+                    <div className="pl-0 sm:pl-[44px] min-w-0 space-y-1">
+                      {clubAsociado && (
                         <div className="flex items-center gap-1.5 flex-wrap text-xs">
                           <span className="inline-flex items-center gap-1 font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-lg shrink-0">
                             <Shield className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            <span>Sede de {campo.club_asociado}</span>
+                            <span>Sede de {clubAsociado}</span>
                           </span>
-                          {campo.localidad && (
-                            <span className="text-[11px] text-slate-400">
-                              • {campo.localidad}
-                            </span>
-                          )}
                         </div>
-                      ) : (campo.direccion || campo.localidad) ? (
+                      )}
+
+                      {(campo.direccion || campo.localidad) && (
                         <p className="text-xs text-slate-400 truncate">
                           {campo.direccion}
                           {campo.localidad && campo.direccion ? <span> • {campo.localidad}</span> : campo.localidad}
                         </p>
-                      ) : null}
+                      )}
                     </div>
                   </div>
 

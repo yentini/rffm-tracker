@@ -106,6 +106,12 @@ class RFEFClient:
         self._cached_page_props: Optional[dict[str, Any]] = None
         self._club_campos_cache: dict[str, list[Any]] = {}
         self._team_names_cache: dict[str, str] = {}
+        self._campo_to_club_cache: dict[str, str] = {
+            "14610183": "A.D. UNION ADARVE",
+            "7685149": "A.D. UNION ADARVE",
+            "410": "C.D. SAN ROQUE E.F.F.",
+            "203": "A.D. FUNDACION",
+        }
 
     @property
     def calendario_url(self) -> str:
@@ -1442,6 +1448,59 @@ class RFEFClient:
         results = await asyncio.gather(*[_deduce_entry(c, eq) for c, eq in candidate_teams])
         return list(results)
 
+    def _deduce_club_for_campo(self, codigo: str, nombre: str) -> Optional[str]:
+        clean_cod = str(codigo).strip()
+        if clean_cod in self._campo_to_club_cache:
+            return self._campo_to_club_cache[clean_cod]
+        nom_upper = strip_accents(nombre).upper()
+        if "GANAPANES" in nom_upper or "ADARVE" in nom_upper:
+            return "A.D. UNION ADARVE"
+        if "SAN ROQUE" in nom_upper:
+            return "C.D. SAN ROQUE E.F.F."
+        if "VALDEBEBAS" in nom_upper or "CIUDAD REAL MADRID" in nom_upper:
+            return "REAL MADRID C.F."
+        if "CERRO DEL ESPINO" in nom_upper:
+            return "ATLÉTICO DE MADRID"
+        if "CANAL DE ISABEL" in nom_upper:
+            return "C.D. BETIS SAN ISIDRO"
+        if "COTORRUELO" in nom_upper:
+            return "R.F.F.M. (Federativo)"
+        if "LA ELIPA" in nom_upper:
+            return "E.D. MORATALAZ"
+        if "VALDELASFUENTES" in nom_upper or "ALCOBENDAS" in nom_upper:
+            return "ALCOBENDAS C.F."
+        if "VICALVARO" in nom_upper:
+            return "C.D. VICÁLVARO"
+        if "SAN BLAS" in nom_upper:
+            return "E.D.M. SAN BLAS"
+        if "CARABANCHEL" in nom_upper:
+            return "R.C.D. CARABANCHEL"
+        if "MOSCARDO" in nom_upper:
+            return "C.D.C. MOSCARDÓ"
+        if "SANTA ANA" in nom_upper:
+            return "D.A.V. SANTA ANA"
+        if "ALGETE" in nom_upper:
+            return "C.D. ALGETE"
+        if "PINTO" in nom_upper:
+            return "CLUB ATLÉTICO PINTO"
+        if "PARLA" in nom_upper:
+            return "A.D. PARLA"
+        if "POZUELO" in nom_upper:
+            return "C.F. POZUELO DE ALARCÓN"
+        if "LAS ROZAS" in nom_upper:
+            return "LAS ROZAS C.F."
+        if "MAJADAHONDA" in nom_upper:
+            return "C.F. RAYO MAJADAHONDA"
+        if "FUENLABRADA" in nom_upper:
+            return "C.F. FUENLABRADA"
+        if "ALCORCON" in nom_upper:
+            return "A.D. ALCORCÓN"
+        if "LEGANES" in nom_upper:
+            return "C.D. LEGANÉS"
+        if "GETAFE" in nom_upper:
+            return "GETAFE C.F."
+        return None
+
     async def _search_campos_by_club_name(self, query: str) -> list[CampoItem]:
         """Busca clubes coincidentes y deduce las instalaciones o sedes donde disputan partidos sus equipos."""
         cache_key = query.lower().strip()
@@ -1491,6 +1550,7 @@ class RFEFClient:
                         if c_cod and str(c_cod) not in seen_campos:
                             clean_cod = str(c_cod).strip()
                             seen_campos.add(clean_cod)
+                            self._campo_to_club_cache[clean_cod] = club.nombre
                             results.append(
                                 CampoItem(
                                     codigo=clean_cod,
@@ -1554,16 +1614,23 @@ class RFEFClient:
                 if not cod:
                     continue
                 seen_codigos.add(cod)
+                nom = str(c.get("nombre", "")).strip()
+                club_asoc = (
+                    c.get("club_asociado")
+                    or self._campo_to_club_cache.get(cod)
+                    or self._deduce_club_for_campo(cod, nom)
+                )
                 campos_items.append(
                     CampoItem(
                         codigo=cod,
-                        nombre=str(c.get("nombre", "")).strip(),
+                        nombre=nom,
                         direccion=c.get("direccion"),
                         codigo_postal=c.get("codigo_postal"),
                         localidad=c.get("localidad"),
                         provincia=c.get("provincia"),
                         superficie=c.get("superficie"),
                         tipo_campo=c.get("tipo_campo"),
+                        club_asociado=club_asoc,
                     )
                 )
 
