@@ -17,6 +17,7 @@ from app.schemas import (
     ClubsResponse,
     CompetitionsResponse,
     GameTypesResponse,
+    GoleadoresResponse,
     GroupsResponse,
     HealthResponse,
     ListaPartidosResponse,
@@ -228,6 +229,34 @@ async def get_clasificacion(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al obtener clasificación desde la RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/goleadores",
+    response_model=GoleadoresResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Competición"],
+    summary="Obtener tabla oficial de máximos goleadores",
+)
+async def get_goleadores(
+    competicion: str = Query(..., description="Código de la competición (ej. 26738289)"),
+    grupo: str = Query(..., description="Código del grupo (ej. 26738290)"),
+    temporada: Optional[str] = Query(None, description="Código opcional de temporada (ej. 22)"),
+    delegacion: Optional[str] = Query(None, description="Código opcional de delegación"),
+) -> GoleadoresResponse:
+    """Obtiene el listado oficial de máximos goleadores (pichichi) de una competición y grupo."""
+    try:
+        return await rfef_client.get_goleadores(
+            competicion=competicion,
+            grupo=grupo,
+            temporada=temporada,
+            delegacion=delegacion,
+        )
+    except RFEFClientError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al obtener goleadores desde la RFFM: {exc}",
         ) from exc
 
 

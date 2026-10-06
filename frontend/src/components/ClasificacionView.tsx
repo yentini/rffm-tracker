@@ -7,9 +7,12 @@ import {
   Competition,
   Group,
   TeamDetail,
+  PlayerDetail,
 } from '../types';
-import { fetchClasificacion, fetchTeamDetail } from '../services/api';
+import { fetchClasificacion, fetchTeamDetail, fetchPlayerDetail } from '../services/api';
 import { TeamDetailModal } from './TeamDetailModal';
+import { PlayerDetailModal } from './PlayerDetailModal';
+import { GoleadoresTable } from './GoleadoresTable';
 import {
   Trophy,
   ChevronLeft,
@@ -18,6 +21,7 @@ import {
   AlertCircle,
   Shield,
   Calendar,
+  Flame,
 } from 'lucide-react';
 
 interface ClasificacionViewProps {
@@ -66,11 +70,41 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
   // Controla la auto-sincronización con current_round para que ocurra solo una vez por grupo
   const hasAutoSyncedCurrentRoundRef = useRef<boolean>(false);
 
+  // Selector de subvista: 'clasificacion' o 'goleadores'
+  const [viewMode, setViewMode] = useState<'clasificacion' | 'goleadores'>('clasificacion');
+
   // Estado para el modal de detalle del equipo
   const [selectedTeamCode, setSelectedTeamCode] = useState<string | null>(null);
   const [teamDetail, setTeamDetail] = useState<TeamDetail | null>(null);
   const [isTeamLoading, setIsTeamLoading] = useState<boolean>(false);
   const [teamError, setTeamError] = useState<string | null>(null);
+
+  // Estado para el modal de detalle del jugador desde goleadores
+  const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
+  const [playerDetail, setPlayerDetail] = useState<PlayerDetail | null>(null);
+  const [isPlayerLoading, setIsPlayerLoading] = useState<boolean>(false);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+
+  const handleOpenPlayer = async (codjugador: string) => {
+    setSelectedPlayerCode(codjugador);
+    setIsPlayerLoading(true);
+    setPlayerError(null);
+    try {
+      const pData = await fetchPlayerDetail(codjugador);
+      setPlayerDetail(pData);
+    } catch (err: any) {
+      console.error('Error al cargar ficha de jugador:', err);
+      setPlayerError(err.message || 'No se pudo cargar la ficha del jugador.');
+    } finally {
+      setIsPlayerLoading(false);
+    }
+  };
+
+  const handleClosePlayer = () => {
+    setSelectedPlayerCode(null);
+    setPlayerDetail(null);
+    setPlayerError(null);
+  };
 
   // Al cambiar competición o grupo, reiniciar jornada y permitir auto-sincronización inicial
   useEffect(() => {
@@ -309,8 +343,50 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
         </div>
       </div>
 
-      {/* 2. CONTROL DE JORNADA Y FILTRO DE ÁMBITO (GENERAL / CASA / FUERA) */}
+      {/* 2. PESTAÑAS SEGMENTADAS: CLASIFICACIÓN / GOLEADORES */}
       {selectedGroup && (
+        <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-lg">
+          <button
+            type="button"
+            onClick={() => setViewMode('clasificacion')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+              viewMode === 'clasificacion'
+                ? 'bg-red-600 text-white shadow-md shadow-red-950/40'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>Clasificación</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('goleadores')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+              viewMode === 'goleadores'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-extrabold'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <span>Goleadores</span>
+          </button>
+        </div>
+      )}
+
+      {/* 3. VISTA DE GOLEADORES */}
+      {selectedGroup && viewMode === 'goleadores' && (
+        <GoleadoresTable
+          competicion={selectedCompetition}
+          grupo={selectedGroup}
+          temporada={selectedSeason}
+          nombreCompeticionFallback={competitions.find((c) => c.codigo === selectedCompetition)?.nombre}
+          nombreGrupoFallback={groups.find((g) => g.codigo === selectedGroup)?.nombre}
+          onSelectPlayer={handleOpenPlayer}
+        />
+      )}
+
+      {/* 4. VISTA DE CLASIFICACIÓN (JORNADA Y TABLA) */}
+      {viewMode === 'clasificacion' && selectedGroup && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-3.5 shadow-xl backdrop-blur-md space-y-3">
           {/* Navegación por Jornadas */}
           <div className="flex items-center justify-between gap-2">
@@ -421,25 +497,27 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
         </div>
       )}
 
-      {/* 3. TABLA DE CLASIFICACIÓN */}
-      {isLoading ? (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-12 text-center shadow-xl flex flex-col items-center justify-center space-y-3">
-          <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
-          <p className="text-xs text-slate-400">Cargando clasificación de la RFFM...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-slate-900/90 border border-red-500/30 rounded-3xl p-6 text-center shadow-xl space-y-3">
-          <AlertCircle className="w-7 h-7 text-red-500 mx-auto" />
-          <p className="text-xs text-slate-300">{error}</p>
-        </div>
-      ) : !clasificacionData || clasificacionData.clasificacion.length === 0 ? (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 text-center space-y-2">
-          <Trophy className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-xs text-slate-400">
-            No hay datos de clasificación disponibles para esta selección.
-          </p>
-        </div>
-      ) : (
+      {/* 5. TABLA DE CLASIFICACIÓN (Solo cuando viewMode es 'clasificacion') */}
+      {viewMode === 'clasificacion' && (
+        <>
+          {isLoading ? (
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-12 text-center shadow-xl flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+              <p className="text-xs text-slate-400">Cargando clasificación de la RFFM...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-slate-900/90 border border-red-500/30 rounded-3xl p-6 text-center shadow-xl space-y-3">
+              <AlertCircle className="w-7 h-7 text-red-500 mx-auto" />
+              <p className="text-xs text-slate-300">{error}</p>
+            </div>
+          ) : !clasificacionData || clasificacionData.clasificacion.length === 0 ? (
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 text-center space-y-2">
+              <Trophy className="w-8 h-8 text-slate-600 mx-auto" />
+              <p className="text-xs text-slate-400">
+                No hay datos de clasificación disponibles para esta selección.
+              </p>
+            </div>
+          ) : (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl overflow-hidden backdrop-blur-md">
           {/* Cabecera y tabla con scroll horizontal optimizado */}
           <div className="overflow-x-auto no-scrollbar">
@@ -698,6 +776,8 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
             </div>
           </div>
         </div>
+        )}
+        </>
       )}
 
       {/* Modal de Detalle del Equipo al pulsar sobre un equipo de la tabla */}
@@ -708,6 +788,16 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
         isLoading={isTeamLoading}
         error={teamError}
         onRetry={() => selectedTeamCode && handleOpenTeam(selectedTeamCode)}
+      />
+
+      {/* Modal de Detalle del Jugador al pulsar sobre un goleador */}
+      <PlayerDetailModal
+        isOpen={!!selectedPlayerCode}
+        onClose={handleClosePlayer}
+        playerDetail={playerDetail}
+        isLoading={isPlayerLoading}
+        error={playerError}
+        onRetry={() => selectedPlayerCode && handleOpenPlayer(selectedPlayerCode)}
       />
     </div>
   );

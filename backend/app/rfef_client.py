@@ -30,6 +30,8 @@ from app.schemas import (
     EstadoPartido,
     Equipo,
     GameType,
+    GoleadorItem,
+    GoleadoresResponse,
     Group,
     Jornada,
     JornadaInfo,
@@ -118,6 +120,7 @@ class RFEFClient:
             "410": "Av. Monforte de Lemos, 13",
             "203": "C/ Monasterio de El Escorial",
         }
+        self._team_deduce_cache: dict[str, tuple[Optional[str], Optional[str], Optional[str], Optional[str], str]] = {}
 
     @property
     def calendario_url(self) -> str:
@@ -1217,43 +1220,179 @@ class RFEFClient:
                 f"No se pudo consultar la clasificación de {competicion} (grupo {grupo}, jornada {jornada}): {error}"
             ) from error
 
+    async def get_goleadores(
+        self,
+        competicion: str,
+        grupo: str,
+        temporada: Optional[str] = None,
+        delegacion: Optional[str] = None,
+    ) -> GoleadoresResponse:
+        """Obtiene la tabla de máximos goleadores de una competición y grupo desde la API de RFFM."""
+        params: dict[str, str] = {
+            "idCompetition": competicion.strip(),
+            "idGroup": grupo.strip(),
+        }
+        if delegacion:
+            params["delegacion"] = delegacion.strip()
+
+        try:
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/128.0.0.0 Safari/537.36"
+                ),
+                "Accept": "application/json, text/plain, */*",
+            }
+            async with httpx.AsyncClient(
+                verify=self.verify_ssl,
+                timeout=max(self.timeout, 20.0),
+                follow_redirects=True,
+            ) as client:
+                resp = await client.get("https://www.rffm.es/api/scorers", params=params, headers=headers)
+                if resp.status_code != 200:
+                    logger.warning(
+                        "RFFM api/scorers retornó código %s para competición %s, grupo %s",
+                        resp.status_code,
+                        competicion,
+                        grupo,
+                    )
+                    return GoleadoresResponse(
+                        competicion=competicion,
+                        codigo_competicion=competicion,
+                        grupo=grupo,
+                        codigo_grupo=grupo,
+                        temporada=temporada,
+                        total_goleadores=0,
+                        goleadores=[],
+                    )
+
+                data = resp.json()
+                if not data or not isinstance(data, dict):
+                    return GoleadoresResponse(
+                        competicion=competicion,
+                        codigo_competicion=competicion,
+                        grupo=grupo,
+                        codigo_grupo=grupo,
+                        temporada=temporada,
+                        total_goleadores=0,
+                        goleadores=[],
+                    )
+
+                nombre_comp = str(data.get("competicion") or competicion)
+                nombre_grp = str(data.get("grupo") or grupo)
+                raw_goles = data.get("goles") or []
+
+                goleadores_list: list[GoleadorItem] = []
+                if isinstance(raw_goles, list):
+                    for idx, g in enumerate(raw_goles, start=1):
+                        if not isinstance(g, dict):
+                            continue
+                        try:
+                            goles_count = int(g.get("goles", 0) or 0)
+                        except (ValueError, TypeError):
+                            goles_count = 0
+                        try:
+                            goles_penalti_count = int(g.get("goles_penalti", 0) or 0)
+                        except (ValueError, TypeError):
+                            goles_penalti_count = 0
+                        try:
+                            partidos_count = int(g.get("partidos_jugados", 0) or 0)
+                        except (ValueError, TypeError):
+                            partidos_count = 0
+                        try:
+                            promedio = float(str(g.get("goles_por_partidos", 0)).replace(",", "."))
+                        except (ValueError, TypeError):
+                            promedio = round(goles_count / partidos_count, 2) if partidos_count > 0 else 0.0
+
+                        foto_raw = g.get("foto")
+                        foto_url = fix_escudo_url(foto_raw) if foto_raw else None
+
+                        goleadores_list.append(
+                            GoleadorItem(
+                                posicion=idx,
+                                codigo_jugador=str(g.get("codigo_jugador", "")),
+                                jugador=str(g.get("jugador", "Desconocido")),
+                                foto=foto_url,
+                                codigo_equipo=str(g.get("codigo_equipo", "")) if g.get("codigo_equipo") else None,
+                                nombre_equipo=str(g.get("nombre_equipo", "")),
+                                escudo_equipo=fix_escudo_url(g.get("escudo_equipo")),
+                                partidos_jugados=partidos_count,
+                                goles=goles_count,
+                                goles_penalti=goles_penalti_count,
+                                goles_por_partidos=promedio,
+                            )
+                        )
+
+                return GoleadoresResponse(
+                    competicion=nombre_comp,
+                    codigo_competicion=competicion,
+                    grupo=nombre_grp,
+                    codigo_grupo=grupo,
+                    temporada=temporada,
+                    total_goleadores=len(goleadores_list),
+                    goleadores=goleadores_list,
+                )
+        except Exception as error:
+            logger.error("Error al obtener goleadores de la RFFM: %s", error)
+            raise RFEFClientError(
+                f"No se pudieron consultar los goleadores de {competicion} (grupo {grupo}): {error}"
+            ) from error
+
     async def deduce_team_competition(
         self, codequipo: str
     ) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str], str]:
         """Deduce competición y grupo a partir de la ficha de equipo y sus jugadores.
         Retorna (codigo_competicion, nombre_competicion, codgrupo, nombre_grupo, tipojuego).
         """
+        clean_code = str(codequipo).strip()
+        if hasattr(self, "_team_deduce_cache") and clean_code in self._team_deduce_cache:
+            return self._team_deduce_cache[clean_code]
+
         try:
-            team_data = await self.get_team_detail(codequipo)
+            team_data = await self.get_team_detail(clean_code)
             cat = (team_data.categoria if team_data else "").lower()
             is_f7 = any(c in cat for c in ["alevin", "alevín", "benjamin", "benjamín", "prebenjamin", "debutante", "f-7", "f7"])
             default_tipojuego = "2" if is_f7 else "1"
 
             if not team_data or not team_data.jugadores:
-                return None, None, None, None, default_tipojuego
+                res: tuple[Optional[str], Optional[str], Optional[str], Optional[str], str] = (
+                    None, None, None, None, default_tipojuego
+                )
+                if hasattr(self, "_team_deduce_cache"):
+                    self._team_deduce_cache[clean_code] = res
+                return res
 
             # Revisar hasta los primeros 3 jugadores para encontrar su competición
             for jug in team_data.jugadores[:3]:
                 try:
                     p_detail = await self.get_player_detail(jug.cod_jugador)
                     for comp in p_detail.competiciones_participa:
-                        if str(comp.codequipo) == str(codequipo) or len(p_detail.competiciones_participa) == 1:
+                        if str(comp.codequipo) == clean_code or len(p_detail.competiciones_participa) == 1:
                             cat_resolved = (team_data.categoria or comp.nombre_competicion or "").lower()
                             f7_resolved = any(c in cat_resolved for c in ["alevin", "alevín", "benjamin", "benjamín", "prebenjamin", "debutante", "f-7", "f7"])
-                            return (
+                            res = (
                                 comp.codigo_competicion,
                                 comp.nombre_competicion,
                                 comp.codgrupo,
                                 comp.nombre_grupo,
                                 "2" if f7_resolved else "1",
                             )
+                            if hasattr(self, "_team_deduce_cache"):
+                                self._team_deduce_cache[clean_code] = res
+                            return res
                 except Exception as p_err:
                     logger.debug("Error al consultar jugador %s para deducir equipo: %s", jug.cod_jugador, p_err)
                     continue
 
-            return None, None, None, None, default_tipojuego
+            fallback_res: tuple[Optional[str], Optional[str], Optional[str], Optional[str], str] = (
+                None, None, None, None, default_tipojuego
+            )
+            if hasattr(self, "_team_deduce_cache"):
+                self._team_deduce_cache[clean_code] = fallback_res
+            return fallback_res
         except Exception as err:
-            logger.warning("No se pudo deducir competición para equipo %s: %s", codequipo, err)
+            logger.warning("No se pudo deducir competición para equipo %s: %s", clean_code, err)
             return None, None, None, None, "1"
 
     async def get_all_competitions_cached(self, temporada: str = "22") -> list[Competition]:
@@ -1418,14 +1557,29 @@ class RFEFClient:
             grp_id = None
             grp_name = None
 
-            # 2. Si es categoría juvenil, cadete o aficionado (con fichas públicas), intentar deducir grupo exacto
-            is_older = any(w in cat_low for w in ["cadete", "juvenil", "aficionado", "senior", "sénior"])
-            if is_older:
+            # 2. Deducir competición y grupo exacto para categorías federadas (infantil, cadete, juvenil, aficionado, etc.)
+            is_deducible = any(
+                w in cat_low
+                for w in [
+                    "infantil",
+                    "cadete",
+                    "juvenil",
+                    "aficionado",
+                    "senior",
+                    "sénior",
+                    "alevin",
+                    "alevín",
+                    "femenino",
+                    "benjamin",
+                    "benjamín",
+                ]
+            )
+            if is_deducible:
                 try:
-                    # Inspección con timeout rápido de 2 segundos para no bloquear la búsqueda
+                    # Inspección con timeout prudente para deducción exacta
                     d_comp_id, d_comp_name, d_grp_id, d_grp_name, d_tj = await asyncio.wait_for(
                         self.deduce_team_competition(team_item.codigo_equipo),
-                        timeout=2.0
+                        timeout=3.5,
                     )
                     if d_comp_id:
                         comp_id = d_comp_id

@@ -24,6 +24,7 @@ import {
   SearchTeamsResponse,
   CampoDetailResponse,
   CamposSearchResponse,
+  GoleadoresResponse,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -823,6 +824,33 @@ export async function fetchCampoDetail(
   if (!response.ok) throw new Error(`Status ${response.status}`);
   return await response.json();
 }
+
+/**
+ * Obtiene la tabla de máximos goleadores (pichichi) de una competición y grupo.
+ */
+export async function fetchGoleadores(
+  competicion: string,
+  grupo: string,
+  temporada?: string,
+  delegacion?: string
+): Promise<GoleadoresResponse> {
+  const url = new URL(`${BASE_URL}/api/goleadores`);
+  url.searchParams.set('competicion', competicion.trim());
+  url.searchParams.set('grupo', grupo.trim());
+  if (temporada && temporada.trim()) {
+    url.searchParams.set('temporada', temporada.trim());
+  }
+  if (delegacion && delegacion.trim()) {
+    url.searchParams.set('delegacion', delegacion.trim());
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Status ${response.status}`);
+  return await response.json();
+}
+
 
 
 

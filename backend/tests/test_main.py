@@ -562,6 +562,60 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertIn("Error al obtener clasificación desde la RFFM", response.json()["detail"])
 
+    @patch("app.main.rfef_client.get_goleadores", new_callable=AsyncMock)
+    def test_get_goleadores_returns_data(self, mock_get_goleadores):
+        # Arrange
+        from app.schemas import GoleadoresResponse, GoleadorItem
+        mock_get_goleadores.return_value = GoleadoresResponse(
+            competicion="COPA RFEF",
+            codigo_competicion="26738289",
+            grupo="GRUPO A",
+            codigo_grupo="26738290",
+            temporada="22",
+            total_goleadores=1,
+            goleadores=[
+                GoleadorItem(
+                    posicion=1,
+                    codigo_jugador="1178380",
+                    jugador="DOMINGUEZ PEREZ, ALVARO",
+                    nombre_equipo="C.D.A. NAVALCARNERO A",
+                    partidos_jugados=3,
+                    goles=2,
+                    goles_penalti=0,
+                    goles_por_partidos=0.67,
+                )
+            ],
+        )
+
+        # Act
+        response = self.client.get(
+            "/api/goleadores?competicion=26738289&grupo=26738290&temporada=22"
+        )
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["competicion"], "COPA RFEF")
+        self.assertEqual(data["total_goleadores"], 1)
+        self.assertEqual(len(data["goleadores"]), 1)
+        self.assertEqual(data["goleadores"][0]["jugador"], "DOMINGUEZ PEREZ, ALVARO")
+        self.assertEqual(data["goleadores"][0]["goles"], 2)
+
+    @patch("app.main.rfef_client.get_goleadores", new_callable=AsyncMock)
+    def test_get_goleadores_handles_rfef_error(self, mock_get_goleadores):
+        # Arrange
+        from app.rfef_client import RFEFClientError
+        mock_get_goleadores.side_effect = RFEFClientError("Servicio de goleadores no disponible")
+
+        # Act
+        response = self.client.get(
+            "/api/goleadores?competicion=99999&grupo=88888"
+        )
+
+        # Assert
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("Error al obtener goleadores desde la RFFM", response.json()["detail"])
+
     @patch("app.main.rfef_client.search_and_deduce_teams", new_callable=AsyncMock)
     def test_search_teams_deduces_competition(self, mock_search):
         # Arrange

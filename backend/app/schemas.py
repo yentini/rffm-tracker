@@ -644,5 +644,36 @@ class CampoDetailResponse(BaseModel):
     partidos: list[PartidoCampo] = Field(default_factory=list, description="Partidos programados en la sede")
 
 
+class GoleadorItem(BaseModel):
+    """Información de un goleador en la tabla de máximos goleadores."""
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    posicion: int = Field(default=1, description="Posición en el ranking de goleadores")
+    codigo_jugador: str = Field(..., description="Código federativo del jugador")
+    jugador: str = Field(..., description="Nombre completo del jugador")
+    foto: Optional[str] = Field(default=None, description="URL de la fotografía del jugador")
+    codigo_equipo: Optional[str] = Field(default=None, description="Código del equipo")
+    nombre_equipo: str = Field(..., description="Nombre del equipo")
+    escudo_equipo: Optional[str] = Field(default=None, description="URL del escudo del equipo")
+    partidos_jugados: int = Field(default=0, description="Partidos disputados")
+    goles: int = Field(default=0, description="Goles anotados")
+    goles_penalti: int = Field(default=0, description="Goles anotados desde el punto de penalti")
+    goles_por_partidos: float = Field(default=0.0, description="Promedio de goles por partido")
+
+
+class GoleadoresResponse(BaseModel):
+    """Listado oficial de goleadores de una competición y grupo."""
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    competicion: str = Field(..., description="Nombre de la competición")
+    codigo_competicion: str = Field(..., description="Código de la competición")
+    grupo: str = Field(..., description="Nombre del grupo")
+    codigo_grupo: str = Field(..., description="Código del grupo")
+    temporada: Optional[str] = Field(default=None, description="Código de la temporada")
+    total_goleadores: int = Field(default=0, description="Total de goleadores registrados")
+    goleadores: list[GoleadorItem] = Field(default_factory=list, description="Tabla de goleadores ordenada")
+
+
+
 
 

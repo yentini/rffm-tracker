@@ -511,3 +511,28 @@ export interface CampoDetailResponse {
   total_partidos: number;
   partidos: PartidoCampo[];
 }
+
+export interface GoleadorItem {
+  posicion: number;
+  codigo_jugador: string;
+  jugador: string;
+  foto?: string | null;
+  codigo_equipo?: string | null;
+  nombre_equipo: string;
+  escudo_equipo?: string | null;
+  partidos_jugados: number;
+  goles: number;
+  goles_penalti: number;
+  goles_por_partidos: number;
+}
+
+export interface GoleadoresResponse {
+  competicion: string;
+  codigo_competicion: string;
+  grupo: string;
+  codigo_grupo: string;
+  temporada?: string | null;
+  total_goleadores: number;
+  goleadores: GoleadorItem[];
+}
+

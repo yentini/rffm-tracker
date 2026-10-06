@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
 import { CompetitionSelector } from './components/CompetitionSelector';
 import { CalendarSlider } from './components/CalendarSlider';
@@ -10,6 +10,7 @@ import { ClasificacionView } from './components/ClasificacionView';
 import { CamposView } from './components/CamposView';
 import { CampoScheduleModal } from './components/CampoScheduleModal';
 import { SmartTeamSearchModal } from './components/SmartTeamSearchModal';
+import { GoleadoresModal } from './components/GoleadoresModal';
 import {
   fetchActaPartido,
   fetchCalendario,
@@ -17,6 +18,8 @@ import {
   fetchGameTypes,
   fetchGroups,
   fetchSeasons,
+  fetchTeamDetail,
+  fetchPlayerDetail,
 } from './services/api';
 import {
   getFavorites,
@@ -42,7 +45,7 @@ import {
   PartidoCalendario,
   Season,
 } from './types';
-import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy } from 'lucide-react';
+import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy, Flame } from 'lucide-react';
 
 export function App() {
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -82,6 +85,11 @@ export function App() {
   const [isLoadingCalendario, setIsLoadingCalendario] = useState(false);
   const [isOfflineWarning, setIsOfflineWarning] = useState(false);
   const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
+  const [isGoleadoresModalOpen, setIsGoleadoresModalOpen] = useState(false);
+
+  // Referencia para asegurar que un grupo seleccionado (ej. por deducción o favorito)
+  // no se sobrescriba por carreras asíncronas entre loadCompetitions y loadGroups
+  const targetGroupRef = useRef<string | null>(null);
 
   // Estado para el modal contextual de agenda de una instalación deportiva
   const [selectedCampoForModal, setSelectedCampoForModal] = useState<{
@@ -92,12 +100,36 @@ export function App() {
 
   // Manejador para aplicar equipo deducido automáticamente
   const handleSelectDeduceTeam = (deduced: DeduceTeamResult) => {
+    targetGroupRef.current = deduced.codigo_grupo || null;
     if (deduced.codigo_temporada) setSelectedSeason(deduced.codigo_temporada);
     if (deduced.codigo_tipo_juego) setSelectedGameType(deduced.codigo_tipo_juego);
     if (deduced.codigo_competicion) setSelectedCompetition(deduced.codigo_competicion);
     if (deduced.codigo_grupo) setSelectedGroup(deduced.codigo_grupo);
     setSelectedTeam(deduced.codigo_equipo);
     setActiveTab('partidos');
+
+    // Si por alguna razón el grupo vino vacío, resolverlo dinámicamente mediante la ficha del equipo
+    if (!deduced.codigo_grupo && deduced.codigo_equipo) {
+      fetchTeamDetail(deduced.codigo_equipo)
+        .then(async (td) => {
+          if (td?.jugadores && td.jugadores.length > 0) {
+            try {
+              const pd = await fetchPlayerDetail(td.jugadores[0].cod_jugador);
+              const comp =
+                pd.competiciones_participa.find(
+                  (c) => String(c.codequipo) === String(deduced.codigo_equipo)
+                ) || pd.competiciones_participa[0];
+              if (comp?.codgrupo) {
+                targetGroupRef.current = comp.codgrupo;
+                setSelectedGroup(comp.codgrupo);
+              }
+            } catch {
+              // Ignorar error si no se pudo resolver
+            }
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   // Carga inicial de temporadas y modalidades
@@ -180,6 +212,11 @@ export function App() {
         if (isSubscribed) {
           setGroups(grps);
           setSelectedGroup((prev) => {
+            const target = targetGroupRef.current;
+            if (target && grps.some((g) => g.codigo === target)) {
+              targetGroupRef.current = null;
+              return target;
+            }
             if (prev && grps.some((g) => g.codigo === prev)) return prev;
             return grps.length > 0 ? grps[0].codigo : '';
           });
@@ -527,6 +564,18 @@ export function App() {
                   </div>
                 </div>
 
+                {/* Acceso rápido a Goleadores del Grupo */}
+                {selectedCompetition && selectedGroup && (
+                  <button
+                    type="button"
+                    onClick={() => setIsGoleadoresModalOpen(true)}
+                    className="w-full py-2.5 px-4 bg-slate-900/90 hover:bg-slate-850 active:scale-98 border border-slate-800 hover:border-amber-500/40 rounded-2xl text-xs font-bold text-amber-400 hover:text-amber-300 transition-all flex items-center justify-center gap-2 shadow-lg group"
+                  >
+                    <Flame className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span>Ver Máximos Goleadores del Grupo</span>
+                  </button>
+                )}
+
                 <CalendarSlider
                   calendario={calendario}
                   isLoading={isLoadingCalendario}
@@ -685,6 +734,19 @@ export function App() {
           favoriteTeamCodes={favorites.map((f) => f.teamId)}
           onToggleFavorite={handleToggleFavoriteFromDeduce}
         />
+
+        {/* Modal de Máximos Goleadores */}
+        {selectedCompetition && selectedGroup && (
+          <GoleadoresModal
+            isOpen={isGoleadoresModalOpen}
+            onClose={() => setIsGoleadoresModalOpen(false)}
+            competicion={selectedCompetition}
+            grupo={selectedGroup}
+            temporada={selectedSeason}
+            nombreCompeticion={competitions.find((c) => c.codigo === selectedCompetition)?.nombre}
+            nombreGrupo={groups.find((g) => g.codigo === selectedGroup)?.nombre}
+          />
+        )}
 
         {/* Barra de Navegación Inferior Fija */}
         <BottomNav
