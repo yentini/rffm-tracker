@@ -233,18 +233,16 @@ export const CamposView: React.FC<CamposViewProps> = ({
                 >
                   {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
                   <div className="flex-1 min-w-0 space-y-1.5">
-                    {/* Línea 1: Icono + Nombre del Campo + Estrella de Favorito a la derecha (en móvil) */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-amber-500/40 transition-colors">
-                          <MapPin className="w-4 h-4 text-amber-400" />
-                        </div>
-                        <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight truncate">
-                          {campo.nombre}
-                        </h4>
+                    {/* Línea 1: Icono + Nombre del Campo + Estrella de Favorito justo al lado del nombre */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-amber-500/40 transition-colors">
+                        <MapPin className="w-4 h-4 text-amber-400" />
                       </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight truncate">
+                        {campo.nombre}
+                      </h4>
 
-                      {/* En móvil: únicamente la estrella para favoritos en la fila superior */}
+                      {/* Estrella para favoritos al lado del nombre */}
                       {onToggleFavoriteCampo && (
                         <button
                           type="button"
@@ -253,10 +251,10 @@ export const CamposView: React.FC<CamposViewProps> = ({
                             onToggleFavoriteCampo(campo);
                           }}
                           title={isFav ? 'Quitar de sedes favoritas' : 'Añadir a sedes favoritas'}
-                          className={`sm:hidden p-2 rounded-xl transition-all active:scale-90 shrink-0 ${
+                          className={`p-1.5 rounded-xl transition-all active:scale-90 shrink-0 ${
                             isFav
                               ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
-                              : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-800 border border-slate-800/60'
+                              : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-800'
                           }`}
                         >
                           <Star className={`w-4 h-4 ${isFav ? 'fill-emerald-400' : ''}`} />
@@ -283,9 +281,8 @@ export const CamposView: React.FC<CamposViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Línea 3 (Móvil) / Bloque derecho (Desktop): Botón Ver Partidos (+ Estrella en Desktop) */}
-                  <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
-                    {/* Botón Ver Partidos */}
+                  {/* Línea 3 (Móvil) / Bloque derecho (Desktop): Botón Ver Partidos */}
+                  <div className="shrink-0 pt-1 sm:pt-0">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -298,25 +295,6 @@ export const CamposView: React.FC<CamposViewProps> = ({
                       <span>Ver Partidos</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
-
-                    {/* En Desktop: La estrella de favoritos junto al botón */}
-                    {onToggleFavoriteCampo && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleFavoriteCampo(campo);
-                        }}
-                        title={isFav ? 'Quitar de sedes favoritas' : 'Añadir a sedes favoritas'}
-                        className={`hidden sm:inline-flex p-2 rounded-xl transition-all active:scale-90 ${
-                          isFav
-                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
-                            : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-800'
-                        }`}
-                      >
-                        <Star className={`w-4 h-4 ${isFav ? 'fill-emerald-400' : ''}`} />
-                      </button>
-                    )}
                   </div>
                 </div>
               );

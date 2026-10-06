@@ -419,18 +419,16 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                     >
                       {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
                       <div className="flex-1 min-w-0 space-y-1.5">
-                        {/* Línea 1: Icono + Nombre + Papelera en móvil */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
-                              <MapPin className="w-4 h-4 text-emerald-400" />
-                            </div>
-                            <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-tight truncate">
-                              {campo.nombreCampo}
-                            </h4>
+                        {/* Línea 1: Icono + Nombre + Botón eliminar justo al lado */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
+                            <MapPin className="w-4 h-4 text-emerald-400" />
                           </div>
+                          <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-tight truncate">
+                            {campo.nombreCampo}
+                          </h4>
 
-                          {/* En móvil: Papelera a la derecha en la fila superior */}
+                          {/* Botón eliminar de favoritos al lado del nombre */}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -438,7 +436,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                               onRemoveFavoriteCampo(campo.codigoCampo);
                             }}
                             title="Eliminar de sedes favoritas"
-                            className="sm:hidden p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50 shrink-0"
+                            className="p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 shrink-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -463,34 +461,21 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                         </div>
                       </div>
 
-                    {/* Línea 3 en móvil / Bloque derecho en PC: Botón Ver Agenda (+ Papelera en PC) */}
-                    <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCampo(campo);
-                        }}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95 shadow-sm"
-                      >
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>Ver Agenda</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* En Desktop: Papelera a la derecha */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveFavoriteCampo(campo.codigoCampo);
-                        }}
-                        title="Eliminar de sedes favoritas"
-                        className="hidden sm:inline-flex p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                      {/* Línea 3 en móvil / Bloque derecho en PC: Botón Ver Agenda */}
+                      <div className="shrink-0 pt-1 sm:pt-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectCampo(campo);
+                          }}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95 shadow-sm"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Ver Agenda</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                   </div>
                 );
               })}
