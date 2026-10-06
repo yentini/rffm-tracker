@@ -9,6 +9,11 @@ import {
 } from '../utils/matchActions';
 import { computeRunningScores } from '../utils/timeline';
 import {
+  YellowCardIcon,
+  RedCardIcon,
+  DoubleYellowCardIcon,
+} from './SoccerIcons';
+import {
   X,
   Shield,
   MapPin,
@@ -462,15 +467,19 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                   <span className="flex items-center gap-1 text-emerald-400 font-bold" title="Goles totales">
                     <span>⚽</span> {golesLocalList.length + golesVisitanteList.length}
                   </span>
-                  <span className="flex items-center gap-1 text-amber-400 font-bold" title="Tarjetas amarillas">
-                    <span className="w-2.5 h-3 bg-amber-400 rounded-xs inline-block" />{' '}
-                    {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length +
-                      tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length}
+                  <span className="flex items-center gap-1.5 text-amber-400 font-bold" title="Tarjetas amarillas">
+                    <YellowCardIcon size="sm" />
+                    <span>
+                      {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length +
+                        tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1 text-rose-400 font-bold" title="Tarjetas rojas">
-                    <span className="w-2.5 h-3 bg-rose-500 rounded-xs inline-block" />{' '}
-                    {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length +
-                      tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length}
+                  <span className="flex items-center gap-1.5 text-rose-400 font-bold" title="Tarjetas rojas">
+                    <RedCardIcon size="sm" />
+                    <span>
+                      {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length +
+                        tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -507,22 +516,18 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                           {event.minutoRaw}'
                         </span>
 
-                        {/* Icono del evento */}
-                        <div className="shrink-0 flex items-center justify-center w-5">
+                        {/* Icono del evento con ancho fijo (w-6) */}
+                        <div className="shrink-0 flex items-center justify-center w-6">
                           {isGoal ? (
-                            <span className="text-base select-none" role="img" aria-label="Gol">
+                            <span className="text-base select-none leading-none" role="img" aria-label="Gol">
                               ⚽
                             </span>
+                          ) : event.icono === 'doble_amarilla' ? (
+                            <DoubleYellowCardIcon />
                           ) : isRed ? (
-                            <span
-                              className="w-3.5 h-4.5 rounded-xs bg-rose-600 border border-rose-400 inline-block shadow-sm"
-                              title="Tarjeta Roja"
-                            />
+                            <RedCardIcon />
                           ) : (
-                            <span
-                              className="w-3.5 h-4.5 rounded-xs bg-amber-400 border border-amber-300 inline-block shadow-sm"
-                              title="Tarjeta Amarilla"
-                            />
+                            <YellowCardIcon />
                           )}
                         </div>
 
