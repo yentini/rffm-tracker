@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FavoriteTeam, PartidoCalendario } from '../types';
 import { fetchCalendario } from '../services/api';
 import {
-  extractTeamWeekendMatch,
+  extractTeamWeekendMatches,
   processWeekendAgenda,
   WeekendMatchItem,
 } from '../utils/weekendAgenda';
@@ -67,17 +67,17 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
               fav.competitionId,
               fav.groupId
             );
-            return extractTeamWeekendMatch(fav, cal);
+            return extractTeamWeekendMatches(fav, cal);
           } catch (err) {
             console.warn(`No se pudo cargar calendario para ${fav.teamName}:`, err);
-            return null;
+            return [];
           }
         });
 
         const results = await Promise.all(promises);
         if (isSubscribed) {
-          const validMatches = results.filter((m): m is WeekendMatchItem => m !== null);
-          const processed = processWeekendAgenda(validMatches);
+          const allMatches = results.flat();
+          const processed = processWeekendAgenda(allMatches);
           setMatches(processed);
         }
       } catch (err) {

@@ -1,4 +1,4 @@
-import { CalendarioResponse, FavoriteTeam, PartidoCalendario } from '../types';
+import { CalendarioResponse, FavoriteTeam } from '../types';
 
 export interface WeekendMatchItem {
   id: string;
@@ -74,7 +74,11 @@ export function parseDateAndDay(fechaStr?: string | null): {
     }
   }
 
-  const d = new Date(year, month, day);
+  if (year > 0 && year < 100) {
+    year += 2000;
+  }
+
+  const d = new Date(year, month, day, 0, 0, 0, 0);
   if (isNaN(d.getTime())) {
     return {
       diaSemana: 'otro',
@@ -112,6 +116,46 @@ export function parseDateAndDay(fechaStr?: string | null): {
 }
 
 /**
+ * Comprueba si una fecha se encuentra en la ventana activa de la agenda:
+ * Desde el día actual (00:00:00) hasta el primer domingo siguiente (23:59:59).
+ */
+export function isDateInWeekendWindow(
+  matchDateStr?: string | null,
+  referenceDate?: Date
+): boolean {
+  if (!matchDateStr) return false;
+  const parsed = parseDateAndDay(matchDateStr);
+  if (!parsed.timestamp) return false;
+
+  const now = referenceDate || new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0,
+    0
+  ).getTime();
+
+  const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  // Si hoy es domingo (0), el primer domingo siguiente cubre hoy hasta las 23:59:59.
+  // Si hoy es lunes a sábado (1 a 6), el primer domingo siguiente es en (7 - dayOfWeek) días.
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+  const endOfNextSunday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + daysUntilSunday,
+    23,
+    59,
+    59,
+    999
+  ).getTime();
+
+  return parsed.timestamp >= startOfToday && parsed.timestamp <= endOfNextSunday;
+}
+
+/**
  * Extrae la categoría de edad (ej. Cadete, Infantil, Juvenil, etc.)
  * a partir del nombre de la competición o del equipo.
  */
@@ -134,74 +178,73 @@ export function extractCategoryName(competitionName?: string, teamName?: string)
 }
 
 /**
- * Extrae el partido correspondiente a la jornada actual/próxima de un equipo favorito
- * a partir de los datos de su calendario.
+ * Extrae todos los partidos del equipo favorito que se disputan dentro de la ventana:
+ * desde el día actual hasta el primer domingo siguiente.
  */
-export function extractTeamWeekendMatch(
+export function extractTeamWeekendMatches(
   fav: FavoriteTeam,
-  calendario: CalendarioResponse
-): WeekendMatchItem | null {
-  if (!calendario.rounds || calendario.rounds.length === 0) return null;
+  calendario: CalendarioResponse,
+  referenceDate?: Date
+): WeekendMatchItem[] {
+  if (!calendario.rounds || calendario.rounds.length === 0) return [];
 
-  const currentRoundNum = calendario.current_round || 1;
+  const foundMatches: WeekendMatchItem[] = [];
 
-  // 1. Intentar encontrar el partido en la jornada actual
-  const currentRound =
-    calendario.rounds.find((r) => r.numero_jornada === currentRoundNum) ||
-    calendario.rounds[0];
+  for (const round of calendario.rounds) {
+    for (const match of round.partidos) {
+      const isLocal = match.codigo_equipo_local === fav.teamId;
+      const isVisitante = match.codigo_equipo_visitante === fav.teamId;
 
-  let match: PartidoCalendario | undefined = currentRound.partidos.find(
-    (p) => p.codigo_equipo_local === fav.teamId || p.codigo_equipo_visitante === fav.teamId
-  );
+      if (!isLocal && !isVisitante) continue;
 
-  let targetRoundNum = currentRound.numero_jornada;
+      if (isDateInWeekendWindow(match.fecha, referenceDate)) {
+        const parsed = parseDateAndDay(match.fecha);
+        const horaLimpia = match.hora?.trim() || '--:--';
+        const categoryName = extractCategoryName(fav.competitionName, fav.teamName);
 
-  // 2. Si no se encontró en la jornada actual, buscar en las jornadas adyacentes
-  if (!match) {
-    for (const round of calendario.rounds) {
-      match = round.partidos.find(
-        (p) => p.codigo_equipo_local === fav.teamId || p.codigo_equipo_visitante === fav.teamId
-      );
-      if (match) {
-        targetRoundNum = round.numero_jornada;
-        break;
+        foundMatches.push({
+          id: `${fav.teamId}-${match.codacta || round.numero_jornada}`,
+          codacta: match.codacta || '',
+          favTeamId: fav.teamId,
+          favTeamName: fav.teamName,
+          favTeamShield: fav.teamShield,
+          competitionName: fav.competitionName,
+          categoryName,
+          groupName: fav.groupName,
+          jornadaNum: round.numero_jornada,
+          isLocal,
+          equipoLocal: match.equipo_local,
+          escudoLocal: match.escudo_equipo_local,
+          golesLocal: match.goles_local,
+          equipoVisitante: match.equipo_visitante,
+          escudoVisitante: match.escudo_equipo_visitante,
+          golesVisitante: match.goles_visitante,
+          campo: match.campo,
+          codigoCampo: match.codigo_campo,
+          fechaRaw: match.fecha,
+          fechaFormateada: parsed.fechaFormateada,
+          hora: horaLimpia,
+          diaSemana: parsed.diaSemana,
+          diaSemanaNombre: parsed.diaSemanaNombre,
+          timestamp: parsed.timestamp,
+        });
       }
     }
   }
 
-  if (!match) return null;
+  return foundMatches;
+}
 
-  const isLocal = match.codigo_equipo_local === fav.teamId;
-  const parsed = parseDateAndDay(match.fecha);
-  const horaLimpia = match.hora?.trim() || '--:--';
-  const categoryName = extractCategoryName(fav.competitionName, fav.teamName);
-
-  return {
-    id: `${fav.teamId}-${match.codacta || targetRoundNum}`,
-    codacta: match.codacta || '',
-    favTeamId: fav.teamId,
-    favTeamName: fav.teamName,
-    favTeamShield: fav.teamShield,
-    competitionName: fav.competitionName,
-    categoryName,
-    groupName: fav.groupName,
-    jornadaNum: targetRoundNum,
-    isLocal,
-    equipoLocal: match.equipo_local,
-    escudoLocal: match.escudo_equipo_local,
-    golesLocal: match.goles_local,
-    equipoVisitante: match.equipo_visitante,
-    escudoVisitante: match.escudo_equipo_visitante,
-    golesVisitante: match.goles_visitante,
-    campo: match.campo,
-    codigoCampo: match.codigo_campo,
-    fechaRaw: match.fecha,
-    fechaFormateada: parsed.fechaFormateada,
-    hora: horaLimpia,
-    diaSemana: parsed.diaSemana,
-    diaSemanaNombre: parsed.diaSemanaNombre,
-    timestamp: parsed.timestamp,
-  };
+/**
+ * Función de compatibilidad: extrae el primer partido del fin de semana (si existe).
+ */
+export function extractTeamWeekendMatch(
+  fav: FavoriteTeam,
+  calendario: CalendarioResponse,
+  referenceDate?: Date
+): WeekendMatchItem | null {
+  const matches = extractTeamWeekendMatches(fav, calendario, referenceDate);
+  return matches.length > 0 ? matches[0] : null;
 }
 
 /**

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   parseDateAndDay,
   extractCategoryName,
+  isDateInWeekendWindow,
+  extractTeamWeekendMatches,
   extractTeamWeekendMatch,
   processWeekendAgenda,
   WeekendMatchItem,
@@ -21,6 +23,36 @@ describe('Weekend Agenda Utilities', () => {
       expect(extractCategoryName('PRIMERA AFICIONADOS')).toBe('Aficionado');
       expect(extractCategoryName('TERCERA FEDERACIÓN')).toBe('Senior');
       expect(extractCategoryName('', 'Getafe CF Cadete B')).toBe('Cadete');
+    });
+  });
+
+  describe('isDateInWeekendWindow', () => {
+    // Martes 8 de octubre de 2024
+    const refTuesday = new Date('2024-10-08T12:00:00');
+
+    it('debe descartar partidos del fin de semana anterior', () => {
+      // Sábado 5 de octubre de 2024 (fin de semana anterior)
+      expect(isDateInWeekendWindow('2024-10-05', refTuesday)).toBe(false);
+      // Domingo 6 de octubre de 2024 (fin de semana anterior)
+      expect(isDateInWeekendWindow('2024-10-06', refTuesday)).toBe(false);
+    });
+
+    it('debe incluir partidos desde el día actual hasta el primer domingo siguiente', () => {
+      // Martes 8 (hoy)
+      expect(isDateInWeekendWindow('2024-10-08', refTuesday)).toBe(true);
+      // Viernes 11
+      expect(isDateInWeekendWindow('2024-10-11', refTuesday)).toBe(true);
+      // Sábado 12 (fin de semana actual)
+      expect(isDateInWeekendWindow('2024-10-12', refTuesday)).toBe(true);
+      // Domingo 13 (primer domingo siguiente)
+      expect(isDateInWeekendWindow('2024-10-13', refTuesday)).toBe(true);
+    });
+
+    it('debe descartar partidos del siguiente fin de semana', () => {
+      // Lunes 14
+      expect(isDateInWeekendWindow('2024-10-14', refTuesday)).toBe(false);
+      // Sábado 19
+      expect(isDateInWeekendWindow('2024-10-19', refTuesday)).toBe(false);
     });
   });
 
@@ -51,7 +83,7 @@ describe('Weekend Agenda Utilities', () => {
     });
   });
 
-  describe('extractTeamWeekendMatch', () => {
+  describe('extractTeamWeekendMatches & extractTeamWeekendMatch', () => {
     const sampleFav: FavoriteTeam = {
       teamId: 'team-1',
       teamName: 'CD Pozuelo A',
@@ -71,14 +103,25 @@ describe('Weekend Agenda Utilities', () => {
       tipojuego: '1',
       competicion: 'comp-1',
       grupo: 'grp-1',
-      current_round: 2,
+      current_round: 1, // Simula que la API aún apunta a la jornada 1 pasada
       total_jornadas: 10,
       rounds: [
         {
           codjornada: 'j1',
           nombre_jornada: 'Jornada 1',
           numero_jornada: 1,
-          partidos: [],
+          partidos: [
+            {
+              codacta: 'acta-antigua',
+              codigo_equipo_local: 'team-1',
+              equipo_local: 'CD Pozuelo A',
+              codigo_equipo_visitante: 'team-old',
+              equipo_visitante: 'Rival Anterior',
+              campo: 'Valle de las Cañas',
+              fecha: '2024-10-05', // Fin de semana anterior
+              hora: '11:00',
+            },
+          ],
         },
         {
           codjornada: 'j2',
@@ -92,7 +135,7 @@ describe('Weekend Agenda Utilities', () => {
               codigo_equipo_visitante: 'team-2',
               equipo_visitante: 'Las Rozas CF',
               campo: 'Valle de las Cañas',
-              fecha: '2024-10-12',
+              fecha: '2024-10-12', // Este fin de semana
               hora: '11:00',
             },
           ],
@@ -100,14 +143,19 @@ describe('Weekend Agenda Utilities', () => {
       ],
     };
 
-    it('debe extraer el partido de la jornada actual para el equipo favorito', () => {
-      const match = extractTeamWeekendMatch(sampleFav, sampleCal);
-      expect(match).not.toBeNull();
-      expect(match?.codacta).toBe('acta-555');
-      expect(match?.diaSemana).toBe('sabado');
-      expect(match?.hora).toBe('11:00');
-      expect(match?.campo).toBe('Valle de las Cañas');
-      expect(match?.isLocal).toBe(true);
+    it('debe descartar partidos del fin de semana anterior y extraer solo el de este fin de semana', () => {
+      const refTuesday = new Date('2024-10-08T12:00:00');
+      const matches = extractTeamWeekendMatches(sampleFav, sampleCal, refTuesday);
+      expect(matches).toHaveLength(1);
+      expect(matches[0].codacta).toBe('acta-555');
+      expect(matches[0].diaSemana).toBe('sabado');
+      expect(matches[0].fechaFormateada).toContain('12');
+      expect(matches[0].hora).toBe('11:00');
+      expect(matches[0].campo).toBe('Valle de las Cañas');
+      expect(matches[0].isLocal).toBe(true);
+
+      const single = extractTeamWeekendMatch(sampleFav, sampleCal, refTuesday);
+      expect(single?.codacta).toBe('acta-555');
     });
   });
 
