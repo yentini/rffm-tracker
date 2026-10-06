@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.svg', 'pwa-512x512.svg'],
       manifest: {
-        name: 'RFEF Tracker',
-        short_name: 'RFEF',
-        description: 'Seguimiento de partidos, clasificaciones y federación RFEF / RFFM',
+        name: 'RFFM Tracker',
+        short_name: 'RFFM',
+        description: 'Seguimiento de partidos, clasificaciones y federación RFFM',
         theme_color: '#0f172a',
         background_color: '#ffffff',
         display: 'standalone',

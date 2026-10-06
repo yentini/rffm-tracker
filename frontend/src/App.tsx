@@ -256,6 +256,20 @@ export function App() {
     return Array.from(teamMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [calendario]);
 
+  // Total de partidos del equipo actualmente filtrado
+  const teamMatchesCount = useMemo(() => {
+    if (!selectedTeam || !calendario) return 0;
+    let count = 0;
+    calendario.rounds.forEach((round) => {
+      round.partidos.forEach((p) => {
+        if (p.codigo_equipo_local === selectedTeam || p.codigo_equipo_visitante === selectedTeam) {
+          count += 1;
+        }
+      });
+    });
+    return count;
+  }, [calendario, selectedTeam]);
+
   // Manejadores de cambios manuales en selectores para limpiar niveles inferiores
   const handleSeasonChange = (seasonId: string) => {
     setSelectedSeason(seasonId);
@@ -370,14 +384,14 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center">
-      {/* Contenedor central con formato móvil responsive */}
-      <div className="w-full max-w-md min-h-screen flex flex-col relative pb-24">
+      {/* Contenedor central con formato móvil responsive y mejor aprovechamiento del ancho */}
+      <div className="w-full max-w-xl min-h-screen flex flex-col relative pb-24">
         
         {/* Cabecera Fija */}
         <Header onRefresh={loadInitialData} isLoading={isLoading} />
 
         {/* Contenido principal con safe area */}
-        <main className="pt-24 px-4 flex-1 space-y-5">
+        <main className="pt-20 sm:pt-24 px-2.5 sm:px-4 flex-1 space-y-4 sm:space-y-5">
           
           {/* Banner de aviso offline / fallback */}
           {isOfflineWarning && (
@@ -412,19 +426,20 @@ export function App() {
                 isCurrentFavorite={isCurrentFavorite}
                 onToggleFavorite={handleToggleFavorite}
                 onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
-                onViewClasificacion={() => setActiveTab('clasificacion')}
               />
 
               {/* Sección 2: Calendario (Horizontal por Jornadas o Vertical por Equipo) */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4 text-red-500" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                      {selectedTeam ? 'Partidos del Equipo' : 'Calendario Oficial'}
+              <div className="space-y-2.5 sm:space-y-3 pt-1">
+                <div className="flex items-center justify-between px-1 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
+                      {selectedTeam
+                        ? (teams.find((t) => t.codigo === selectedTeam)?.nombre || 'Partidos del Equipo')
+                        : 'Calendario Oficial'}
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {selectedGroup && (
                       <button
                         type="button"
@@ -438,7 +453,7 @@ export function App() {
                     )}
                     {calendario && (
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-                        {selectedTeam ? 'Vista Continua' : `${calendario.total_jornadas} Jornadas`}
+                        {selectedTeam ? `${teamMatchesCount} Partidos` : `${calendario.total_jornadas} Jornadas`}
                       </span>
                     )}
                   </div>
