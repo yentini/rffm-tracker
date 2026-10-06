@@ -375,51 +375,88 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                 {favoriteCampos.map((campo) => (
                   <div
                     key={campo.codigoCampo}
-                    className="py-3.5 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 transition-all flex items-center justify-between gap-3"
+                    onClick={() => onSelectCampo(campo)}
+                    className="py-3.5 sm:py-4 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 sm:p-3 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer"
                   >
-                    <div
-                      onClick={() => onSelectCampo(campo)}
-                      className="flex items-start gap-3 min-w-0 flex-1 cursor-pointer"
-                    >
-                      <div className="w-10 h-10 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-2 shrink-0 group-hover:border-emerald-500/40 transition-colors">
-                        <MapPin className="w-5 h-5 text-emerald-400" />
-                      </div>
-
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                    {/* Bloque Principal (Línea 1 + Línea 2 en móvil) */}
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      {/* Línea 1 (Móvil): Icono + Nombre + Botón Eliminar en móvil */}
+                      <div className="flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
+                            <MapPin className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-tight truncate">
                             {campo.nombreCampo}
                           </h4>
-                          {campo.clubAsociado && (
-                            <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.2 rounded-lg shrink-0">
-                              {campo.clubAsociado}
-                            </span>
-                          )}
                         </div>
 
+                        {/* En móvil: Papelera en la fila superior */}
+                        <div className="sm:hidden shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveFavoriteCampo(campo.codigoCampo);
+                            }}
+                            title="Eliminar de sedes favoritas"
+                            className="p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Línea 2: Sede de [Club] + Dirección / Localidad + Superficie / Tipo */}
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] pl-0 sm:pl-[44px]">
+                        {campo.clubAsociado && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-lg shrink-0">
+                            <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <span>Sede de {campo.clubAsociado}</span>
+                          </span>
+                        )}
+
                         {campo.direccion && (
-                          <p className="text-[11px] text-slate-400 truncate">
+                          <p className="text-[11px] text-slate-400 truncate max-w-full">
                             {campo.direccion}
                             {campo.localidad && <span> • {campo.localidad}</span>}
                           </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
-                          {campo.superficie && (
-                            <span className="bg-slate-950/80 text-slate-300 px-2 py-0.5 rounded-lg border border-slate-800">
-                              {campo.superficie}
-                            </span>
-                          )}
-                          {campo.tipoCampo && (
-                            <span className="bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-800/40">
-                              {campo.tipoCampo}
-                            </span>
-                          )}
-                        </div>
+                        {(campo.superficie || campo.tipoCampo) && (
+                          <div className="flex items-center gap-1 text-[10px] shrink-0">
+                            {campo.superficie && (
+                              <span className="bg-slate-950/80 text-slate-300 px-2 py-0.5 rounded-lg border border-slate-800">
+                                {campo.superficie}
+                              </span>
+                            )}
+                            {campo.tipoCampo && (
+                              <span className="bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-800/40">
+                                {campo.tipoCampo}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Línea 3 (Móvil) / Bloque derecho (Desktop): Botones de Acción */}
+                    <div className="flex items-center gap-2 shrink-0 pt-1.5 sm:pt-0 border-t border-slate-800/50 sm:border-0">
+                      {/* Botón Ver Agenda */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectCampo(campo);
+                        }}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95 shadow-sm"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Ver Agenda</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Botón Cómo llegar */}
                       {campo.direccion && (
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -429,23 +466,14 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           title="Abrir ubicación en Google Maps"
-                          className="p-2 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-all border border-slate-800 active:scale-95"
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-all active:scale-95 shrink-0"
                         >
-                          <Navigation className="w-4 h-4 text-blue-400" />
+                          <Navigation className="w-3.5 h-3.5 text-blue-400" />
+                          <span className="text-[11px]">Cómo llegar</span>
                         </a>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => onSelectCampo(campo)}
-                        title="Ver partidos programados en esta sede"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95"
-                      >
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Ver Agenda</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-
+                      {/* En Desktop: Papelera a la derecha */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -453,7 +481,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           onRemoveFavoriteCampo(campo.codigoCampo);
                         }}
                         title="Eliminar de sedes favoritas"
-                        className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95"
+                        className="hidden sm:inline-flex p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
