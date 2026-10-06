@@ -585,6 +585,13 @@ export function App() {
               onRemoveFavoriteCampo={handleRemoveFavoriteCampo}
               onGoToMatches={() => setActiveTab('partidos')}
               onGoToCampos={() => setActiveTab('sedes')}
+              onSelectMatch={handleSelectMatch}
+              onSelectCampoModal={(codigoCampo, nombreCampoFallback) =>
+                setSelectedCampoForModal({
+                  codigoCampo,
+                  nombreCampoFallback,
+                })
+              }
             />
           )}
 

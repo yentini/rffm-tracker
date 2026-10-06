@@ -1,0 +1,231 @@
+import { CalendarioResponse, FavoriteTeam, PartidoCalendario } from '../types';
+
+export interface WeekendMatchItem {
+  id: string;
+  codacta: string;
+  favTeamId: string;
+  favTeamName: string;
+  favTeamShield?: string | null;
+  competitionName: string;
+  groupName: string;
+  jornadaNum: number;
+  isLocal: boolean;
+
+  // Equipos del encuentro
+  equipoLocal: string;
+  escudoLocal?: string | null;
+  golesLocal?: string | null;
+  equipoVisitante: string;
+  escudoVisitante?: string | null;
+  golesVisitante?: string | null;
+
+  // Ubicación y horario
+  campo?: string | null;
+  codigoCampo?: string | null;
+  fechaRaw?: string | null;
+  fechaFormateada: string;
+  hora: string;
+  diaSemana: 'sabado' | 'domingo' | 'otro';
+  diaSemanaNombre: string; // "Sábado", "Domingo", "Viernes", etc.
+  timestamp: number;
+
+  // Conflictos de horario
+  hasTimeConflict?: boolean;
+  conflictDescription?: string;
+}
+
+/**
+ * Parsea una fecha en formato YYYY-MM-DD o DD/MM/YYYY y extrae el día de la semana.
+ */
+export function parseDateAndDay(fechaStr?: string | null): {
+  diaSemana: 'sabado' | 'domingo' | 'otro';
+  diaSemanaNombre: string;
+  fechaFormateada: string;
+  timestamp: number;
+} {
+  if (!fechaStr || !fechaStr.trim()) {
+    return {
+      diaSemana: 'otro',
+      diaSemanaNombre: 'Por determinar',
+      fechaFormateada: 'Fecha por definir',
+      timestamp: 0,
+    };
+  }
+
+  const clean = fechaStr.trim().split(' ')[0].replace(/\//g, '-');
+  const parts = clean.split('-');
+
+  let year = 0;
+  let month = 0;
+  let day = 0;
+
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      day = parseInt(parts[2], 10);
+    } else {
+      // DD-MM-YYYY
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
+    }
+  }
+
+  const d = new Date(year, month, day);
+  if (isNaN(d.getTime())) {
+    return {
+      diaSemana: 'otro',
+      diaSemanaNombre: 'Otro día',
+      fechaFormateada: clean,
+      timestamp: 0,
+    };
+  }
+
+  const dayOfWeek = d.getDay(); // 0 = Domingo, 6 = Sábado
+  let diaSemana: 'sabado' | 'domingo' | 'otro' = 'otro';
+  let diaSemanaNombre = 'Otro día';
+
+  if (dayOfWeek === 6) {
+    diaSemana = 'sabado';
+    diaSemanaNombre = 'Sábado';
+  } else if (dayOfWeek === 0) {
+    diaSemana = 'domingo';
+    diaSemanaNombre = 'Domingo';
+  } else if (dayOfWeek === 5) {
+    diaSemanaNombre = 'Viernes';
+  }
+
+  const fechaFormateada = d.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+  });
+
+  return {
+    diaSemana,
+    diaSemanaNombre,
+    fechaFormateada,
+    timestamp: d.getTime(),
+  };
+}
+
+/**
+ * Extrae el partido correspondiente a la jornada actual/próxima de un equipo favorito
+ * a partir de los datos de su calendario.
+ */
+export function extractTeamWeekendMatch(
+  fav: FavoriteTeam,
+  calendario: CalendarioResponse
+): WeekendMatchItem | null {
+  if (!calendario.rounds || calendario.rounds.length === 0) return null;
+
+  const currentRoundNum = calendario.current_round || 1;
+
+  // 1. Intentar encontrar el partido en la jornada actual
+  const currentRound =
+    calendario.rounds.find((r) => r.numero_jornada === currentRoundNum) ||
+    calendario.rounds[0];
+
+  let match: PartidoCalendario | undefined = currentRound.partidos.find(
+    (p) => p.codigo_equipo_local === fav.teamId || p.codigo_equipo_visitante === fav.teamId
+  );
+
+  let targetRoundNum = currentRound.numero_jornada;
+
+  // 2. Si no se encontró en la jornada actual, buscar en las jornadas adyacentes
+  if (!match) {
+    for (const round of calendario.rounds) {
+      match = round.partidos.find(
+        (p) => p.codigo_equipo_local === fav.teamId || p.codigo_equipo_visitante === fav.teamId
+      );
+      if (match) {
+        targetRoundNum = round.numero_jornada;
+        break;
+      }
+    }
+  }
+
+  if (!match) return null;
+
+  const isLocal = match.codigo_equipo_local === fav.teamId;
+  const parsed = parseDateAndDay(match.fecha);
+
+  const horaLimpia = match.hora?.trim() || '--:--';
+
+  return {
+    id: `${fav.teamId}-${match.codacta || targetRoundNum}`,
+    codacta: match.codacta || '',
+    favTeamId: fav.teamId,
+    favTeamName: fav.teamName,
+    favTeamShield: fav.teamShield,
+    competitionName: fav.competitionName,
+    groupName: fav.groupName,
+    jornadaNum: targetRoundNum,
+    isLocal,
+    equipoLocal: match.equipo_local,
+    escudoLocal: match.escudo_equipo_local,
+    golesLocal: match.goles_local,
+    equipoVisitante: match.equipo_visitante,
+    escudoVisitante: match.escudo_equipo_visitante,
+    golesVisitante: match.goles_visitante,
+    campo: match.campo,
+    codigoCampo: match.codigo_campo,
+    fechaRaw: match.fecha,
+    fechaFormateada: parsed.fechaFormateada,
+    hora: horaLimpia,
+    diaSemana: parsed.diaSemana,
+    diaSemanaNombre: parsed.diaSemanaNombre,
+    timestamp: parsed.timestamp,
+  };
+}
+
+/**
+ * Ordena y detecta solapamientos / coincidencias de horario entre los partidos de la agenda.
+ */
+export function processWeekendAgenda(matches: WeekendMatchItem[]): WeekendMatchItem[] {
+  // Ordenar: primero sábado, luego domingo, luego otros; dentro de cada día, por hora
+  const sorted = [...matches].sort((a, b) => {
+    // Orden de día: sábado (1), domingo (2), otro (3)
+    const dayOrder = (d: string) => (d === 'sabado' ? 1 : d === 'domingo' ? 2 : 3);
+    const orderDiff = dayOrder(a.diaSemana) - dayOrder(b.diaSemana);
+    if (orderDiff !== 0) return orderDiff;
+
+    // Si ambos son sábado o domingo, ordenar por hora
+    if (a.hora && b.hora && a.hora !== '--:--' && b.hora !== '--:--') {
+      return a.hora.localeCompare(b.hora);
+    }
+    return a.favTeamName.localeCompare(b.favTeamName);
+  });
+
+  // Detectar conflictos horarios (partidos el mismo día a horas muy próximas o iguales)
+  for (let i = 0; i < sorted.length; i++) {
+    for (let j = i + 1; j < sorted.length; j++) {
+      const m1 = sorted[i];
+      const m2 = sorted[j];
+
+      // Mismo día con hora válida
+      if (
+        m1.diaSemana === m2.diaSemana &&
+        m1.diaSemana !== 'otro' &&
+        m1.hora !== '--:--' &&
+        m2.hora !== '--:--'
+      ) {
+        const [h1, min1] = m1.hora.split(':').map((n) => parseInt(n, 10) || 0);
+        const [h2, min2] = m2.hora.split(':').map((n) => parseInt(n, 10) || 0);
+        const minutes1 = h1 * 60 + min1;
+        const minutes2 = h2 * 60 + min2;
+
+        const diffMinutes = Math.abs(minutes1 - minutes2);
+        if (diffMinutes < 90) {
+          m1.hasTimeConflict = true;
+          m1.conflictDescription = `Coincidencia horaria con ${m2.favTeamName} (${m2.hora})`;
+          m2.hasTimeConflict = true;
+          m2.conflictDescription = `Coincidencia horaria con ${m1.favTeamName} (${m1.hora})`;
+        }
+      }
+    }
+  }
+
+  return sorted;
+}

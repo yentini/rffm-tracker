@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FavoriteTeam, FavoriteCampo } from '../types';
+import { FavoriteTeam, FavoriteCampo, PartidoCalendario } from '../types';
+import { WeekendAgendaView } from './WeekendAgendaView';
 import {
   Star,
   Shield,
@@ -28,6 +29,8 @@ interface FavoritesViewProps {
   onRemoveFavoriteCampo: (campoId: string) => void;
   onGoToMatches: () => void;
   onGoToCampos: () => void;
+  onSelectMatch?: (partido: PartidoCalendario) => void;
+  onSelectCampoModal?: (codigoCampo?: string | null, nombreCampoFallback?: string | null) => void;
 }
 
 export const FavoritesView: React.FC<FavoritesViewProps> = ({
@@ -41,7 +44,12 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
   onRemoveFavoriteCampo,
   onGoToMatches,
   onGoToCampos,
+  onSelectMatch,
+  onSelectCampoModal,
 }) => {
+  // Pestaña activa dentro de Favoritos: Agenda de Fin de Semana o Gestión de Equipos y Sedes
+  const [activeSubTab, setActiveSubTab] = useState<'agenda' | 'gestion'>('agenda');
+
   // Inicialmente cerrado para sedes y equipos (acordeón mutuamente excluyente)
   const [openSection, setOpenSection] = useState<'equipos' | 'sedes' | null>(null);
 
@@ -54,6 +62,47 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Selector de sub-vista: Agenda vs Gestión */}
+      <div className="flex p-1 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl shadow-black/40 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('agenda')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            activeSubTab === 'agenda'
+              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Agenda Fin de Semana</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('gestion')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            activeSubTab === 'gestion'
+              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+          }`}
+        >
+          <Star className="w-4 h-4" />
+          <span>Equipos & Sedes ({favorites.length + favoriteCampos.length})</span>
+        </button>
+      </div>
+
+      {/* VISTA 1: AGENDA DEL FIN DE SEMANA */}
+      {activeSubTab === 'agenda' && (
+        <WeekendAgendaView
+          favorites={favorites}
+          onSelectMatch={onSelectMatch || (() => {})}
+          onSelectCampo={onSelectCampoModal}
+          onGoToMatches={onGoToMatches}
+        />
+      )}
+
+      {/* VISTA 2: GESTIÓN DE EQUIPOS Y SEDES (ACORDEONES) */}
+      {activeSubTab === 'gestion' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
       {/* 1. SECCIÓN DESPLEGABLE: EQUIPOS FAVORITOS */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl shadow-black/40 backdrop-blur-md overflow-hidden transition-all">
         {/* Cabecera / Botón acordeón */}
@@ -416,6 +465,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
           </div>
         )}
       </div>
+        </div>
+      )}
     </div>
   );
 };
