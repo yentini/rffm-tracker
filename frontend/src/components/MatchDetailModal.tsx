@@ -502,20 +502,10 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                           }`}
                         />
 
-                        {/* Minuto y Marcador en ese momento */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="w-9 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-white shadow-inner">
-                            {event.minutoRaw}'
-                          </span>
-                          {event.marcadorMomento && (
-                            <span
-                              className="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-mono font-black text-xs shadow-sm"
-                              title={`Marcador tras este gol: ${event.marcadorMomento}`}
-                            >
-                              {event.marcadorMomento}
-                            </span>
-                          )}
-                        </div>
+                        {/* Minuto con ancho fijo para mantener perfecta alineación */}
+                        <span className="w-9 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-white shrink-0 shadow-inner">
+                          {event.minutoRaw}'
+                        </span>
 
                         {/* Icono del evento */}
                         <div className="shrink-0 flex items-center justify-center w-5">
@@ -577,6 +567,18 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                             <span>• {event.titulo}</span>
                           </div>
                         </div>
+
+                        {/* Marcador acumulado del gol pegado a la derecha */}
+                        {event.marcadorMomento && (
+                          <div className="shrink-0 ml-1.5 self-center">
+                            <span
+                              className="px-2.5 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-mono font-black text-xs shadow-sm inline-flex items-center"
+                              title={`Marcador tras este gol: ${event.marcadorMomento}`}
+                            >
+                              {event.marcadorMomento}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

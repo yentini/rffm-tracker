@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ClasificacionResponse,
   ClasificacionEquipo,
@@ -63,15 +63,19 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [tabScope, setTabScope] = useState<TabScope>('general');
 
+  // Controla la auto-sincronización con current_round para que ocurra solo una vez por grupo
+  const hasAutoSyncedCurrentRoundRef = useRef<boolean>(false);
+
   // Estado para el modal de detalle del equipo
   const [selectedTeamCode, setSelectedTeamCode] = useState<string | null>(null);
   const [teamDetail, setTeamDetail] = useState<TeamDetail | null>(null);
   const [isTeamLoading, setIsTeamLoading] = useState<boolean>(false);
   const [teamError, setTeamError] = useState<string | null>(null);
 
-  // Al cambiar competición o grupo, reiniciar jornada
+  // Al cambiar competición o grupo, reiniciar jornada y permitir auto-sincronización inicial
   useEffect(() => {
     setSelectedJornada('1');
+    hasAutoSyncedCurrentRoundRef.current = false;
   }, [selectedCompetition, selectedGroup]);
 
   // Carga reactiva de la clasificación
@@ -97,9 +101,12 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
 
         if (isSubscribed) {
           setClasificacionData(data);
-          // Si es la carga inicial de un grupo y tenemos current_round, sincronizar si aún estábamos en '1'
-          if (data.current_round && selectedJornada === '1' && String(data.current_round) !== '1') {
-            setSelectedJornada(String(data.current_round));
+          // Auto-sincronizar con la jornada actual solo en la primera carga de este grupo
+          if (!hasAutoSyncedCurrentRoundRef.current) {
+            hasAutoSyncedCurrentRoundRef.current = true;
+            if (data.current_round && String(data.current_round) !== '1') {
+              setSelectedJornada(String(data.current_round));
+            }
           }
         }
       } catch (err) {
