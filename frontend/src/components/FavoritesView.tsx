@@ -14,7 +14,6 @@ import {
   Sparkles,
   MapPin,
   Building2,
-  Navigation,
   ChevronRight,
 } from 'lucide-react';
 
@@ -378,10 +377,10 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                     onClick={() => onSelectCampo(campo)}
                     className="py-3.5 sm:py-4 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 sm:p-3 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer"
                   >
-                    {/* Bloque Principal (Línea 1 + Línea 2 en móvil) */}
+                    {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
                     <div className="flex-1 min-w-0 space-y-1.5">
-                      {/* Línea 1 (Móvil): Icono + Nombre + Botón Eliminar en móvil */}
-                      <div className="flex items-center justify-between gap-2.5">
+                      {/* Línea 1: Icono + Nombre + Papelera en móvil */}
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-1.5 shrink-0 group-hover:border-emerald-500/40 transition-colors">
                             <MapPin className="w-4 h-4 text-emerald-400" />
@@ -391,87 +390,57 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           </h4>
                         </div>
 
-                        {/* En móvil: Papelera en la fila superior */}
-                        <div className="sm:hidden shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemoveFavoriteCampo(campo.codigoCampo);
-                            }}
-                            title="Eliminar de sedes favoritas"
-                            className="p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        {/* En móvil: Papelera a la derecha en la fila superior */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveFavoriteCampo(campo.codigoCampo);
+                          }}
+                          title="Eliminar de sedes favoritas"
+                          className="sm:hidden p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-95 border border-slate-800/50 shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      {/* Línea 2: Sede de [Club] + Dirección / Localidad + Superficie / Tipo */}
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] pl-0 sm:pl-[44px]">
-                        {campo.clubAsociado && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-lg shrink-0">
-                            <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
-                            <span>Sede de {campo.clubAsociado}</span>
-                          </span>
-                        )}
-
-                        {campo.direccion && (
-                          <p className="text-[11px] text-slate-400 truncate max-w-full">
-                            {campo.direccion}
-                            {campo.localidad && <span> • {campo.localidad}</span>}
-                          </p>
-                        )}
-
-                        {(campo.superficie || campo.tipoCampo) && (
-                          <div className="flex items-center gap-1 text-[10px] shrink-0">
-                            {campo.superficie && (
-                              <span className="bg-slate-950/80 text-slate-300 px-2 py-0.5 rounded-lg border border-slate-800">
-                                {campo.superficie}
-                              </span>
-                            )}
-                            {campo.tipoCampo && (
-                              <span className="bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-800/40">
-                                {campo.tipoCampo}
+                      {/* Línea 2: De dónde es sede (o dirección/localidad) */}
+                      <div className="pl-0 sm:pl-[44px] min-w-0">
+                        {campo.clubAsociado ? (
+                          <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-lg shrink-0">
+                              <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span>Sede de {campo.clubAsociado}</span>
+                            </span>
+                            {campo.localidad && (
+                              <span className="text-[11px] text-slate-400">
+                                • {campo.localidad}
                               </span>
                             )}
                           </div>
-                        )}
+                        ) : (campo.direccion || campo.localidad) ? (
+                          <p className="text-xs text-slate-400 truncate">
+                            {campo.direccion}
+                            {campo.localidad && campo.direccion ? <span> • {campo.localidad}</span> : campo.localidad}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
-                    {/* Línea 3 (Móvil) / Bloque derecho (Desktop): Botones de Acción */}
-                    <div className="flex items-center gap-2 shrink-0 pt-1.5 sm:pt-0 border-t border-slate-800/50 sm:border-0">
-                      {/* Botón Ver Agenda */}
+                    {/* Línea 3 en móvil / Bloque derecho en PC: Botón Ver Agenda (+ Papelera en PC) */}
+                    <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCampo(campo);
                         }}
-                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95 shadow-sm"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/20 text-xs font-semibold transition-all active:scale-95 shadow-sm"
                       >
                         <Calendar className="w-3.5 h-3.5" />
                         <span>Ver Agenda</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
-
-                      {/* Botón Cómo llegar */}
-                      {campo.direccion && (
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                            `${campo.nombreCampo} ${campo.direccion} ${campo.localidad || 'Madrid'}`
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          title="Abrir ubicación en Google Maps"
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-all active:scale-95 shrink-0"
-                        >
-                          <Navigation className="w-3.5 h-3.5 text-blue-400" />
-                          <span className="text-[11px]">Cómo llegar</span>
-                        </a>
-                      )}
 
                       {/* En Desktop: Papelera a la derecha */}
                       <button
