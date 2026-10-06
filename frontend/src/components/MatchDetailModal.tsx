@@ -48,6 +48,26 @@ const getEscudoUrl = (url?: string | null): string | null => {
     : `https://appweb.rffm.es/${clean}`;
 };
 
+const formatTipoGol = (tipoGol?: string | null): string | null => {
+  if (!tipoGol) return null;
+  const clean = tipoGol.trim().toLowerCase();
+  // Códigos habituales de RFFM: 100 = Jugada normal / habitual
+  if (clean === '100' || clean === 'normal' || clean === '0' || clean === '') {
+    return null;
+  }
+  if (clean === '200' || clean.includes('penal')) {
+    return 'Penalti';
+  }
+  if (clean === '300' || clean.includes('propia') || clean.includes('propio')) {
+    return 'En propia puerta';
+  }
+  // Si es un código numérico interno no especificado, no mostrar número
+  if (/^\d+$/.test(clean)) {
+    return null;
+  }
+  return tipoGol.trim();
+};
+
 export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   isOpen,
   onClose,
@@ -157,7 +177,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         nombreEquipo: equipoLocal,
         tipo: 'gol',
         titulo: 'Gol',
-        detalle: g.tipo_gol && g.tipo_gol.toLowerCase() !== 'normal' ? g.tipo_gol : null,
+        detalle: formatTipoGol(g.tipo_gol),
         nombreJugador: g.nombre_jugador || 'Goleador',
         codjugador: findPlayerCode(g.nombre_jugador, g.codjugador),
         icono: 'gol',
@@ -175,7 +195,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         nombreEquipo: equipoVisitante,
         tipo: 'gol',
         titulo: 'Gol',
-        detalle: g.tipo_gol && g.tipo_gol.toLowerCase() !== 'normal' ? g.tipo_gol : null,
+        detalle: formatTipoGol(g.tipo_gol),
         nombreJugador: g.nombre_jugador || 'Goleador',
         codjugador: findPlayerCode(g.nombre_jugador, g.codjugador),
         icono: 'gol',
@@ -275,19 +295,19 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         <div className="p-3.5 sm:p-4 bg-gradient-to-b from-slate-950/90 to-slate-900/60 border-b border-slate-800">
           <div className="grid grid-cols-7 items-center gap-2 text-center">
             {/* Local */}
-            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2">
-              <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
+            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
                 {escudoLocal ? (
                   <img
                     src={escudoLocal}
                     alt={equipoLocal}
-                    className="max-h-full max-w-full object-contain"
+                    className="w-10 h-10 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <Shield className="w-7 h-7 text-slate-500" />
+                  <Shield className="w-7 h-7 text-slate-500 shrink-0" />
                 )}
               </div>
               <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight">
@@ -337,19 +357,19 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             </div>
 
             {/* Visitante */}
-            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2">
-              <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
+            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
                 {escudoVisitante ? (
                   <img
                     src={escudoVisitante}
                     alt={equipoVisitante}
-                    className="max-h-full max-w-full object-contain"
+                    className="w-10 h-10 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <Shield className="w-7 h-7 text-slate-500" />
+                  <Shield className="w-7 h-7 text-slate-500 shrink-0" />
                 )}
               </div>
               <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight">
