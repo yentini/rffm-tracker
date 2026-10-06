@@ -242,32 +242,44 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del modal */}
-        <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
-          <div className="flex items-center gap-2 truncate">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-              Acta Oficial RFFM #{partido.codacta}
+        <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/70 gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 shrink-0">
+              Acta #{partido.codacta}
             </span>
             {data.nombre_competicion && (
-              <span className="text-xs text-slate-400 truncate max-w-[200px]">
+              <span className="text-xs text-slate-400 truncate max-w-[130px] sm:max-w-[220px]">
                 {data.nombre_competicion}
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
-            aria-label="Cerrar modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {campo && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-slate-300 bg-slate-800/90 px-2 sm:px-2.5 py-1 rounded-xl border border-slate-700/80 max-w-[130px] xs:max-w-[180px] sm:max-w-[260px] truncate"
+                title={`Campo: ${campo}`}
+              >
+                <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate">{campo}</span>
+              </span>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all shrink-0"
+              aria-label="Cerrar modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Marcador Principal */}
-        <div className="p-5 bg-gradient-to-b from-slate-950/90 to-slate-900/60 border-b border-slate-800">
+        <div className="p-3.5 sm:p-4 bg-gradient-to-b from-slate-950/90 to-slate-900/60 border-b border-slate-800">
           <div className="grid grid-cols-7 items-center gap-2 text-center">
             {/* Local */}
-            <div className="col-span-3 flex flex-col items-center gap-2">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
+            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2">
+              <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
                 {escudoLocal ? (
                   <img
                     src={escudoLocal}
@@ -286,8 +298,26 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               </h3>
             </div>
 
-            {/* Resultado o Estado */}
+            {/* Resultado o Estado con Fecha y Hora en el centro encima */}
             <div className="col-span-1 flex flex-col items-center justify-center space-y-1">
+              {/* Fecha y Hora en el centro encima del resultado */}
+              {(data.fecha || partido.fecha || data.hora || partido.hora) && (
+                <div className="flex flex-col items-center leading-none text-[10px] font-bold text-slate-400 mb-0.5 whitespace-nowrap">
+                  {(data.fecha || partido.fecha) && (
+                    <span className="text-slate-300 flex items-center gap-0.5">
+                      <Calendar className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                      <span>{data.fecha || partido.fecha}</span>
+                    </span>
+                  )}
+                  {(data.hora || partido.hora) && (
+                    <span className="text-amber-400 font-mono mt-0.5 flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5 text-amber-500/80 shrink-0" />
+                      <span>{data.hora || partido.hora}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+
               {hasScore ? (
                 <div className="flex items-center justify-center gap-1.5">
                   <span className="text-2xl sm:text-3xl font-black text-white">{golesLocal}</span>
@@ -298,7 +328,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 <div className="text-sm font-bold text-slate-400">VS</div>
               )}
 
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 data.acta_cerrada === '1' 
                   ? 'bg-slate-800 text-slate-300 border border-slate-700' 
                   : data.partido_en_juego === '1'
@@ -310,8 +340,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             </div>
 
             {/* Visitante */}
-            <div className="col-span-3 flex flex-col items-center gap-2">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
+            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2">
+              <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg">
                 {escudoVisitante ? (
                   <img
                     src={escudoVisitante}
@@ -331,40 +361,20 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Fecha, Hora y Campo */}
-          <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-400">
-            {(data.fecha || partido.fecha) && (
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                {data.fecha || partido.fecha}
-              </span>
-            )}
-            {(data.hora || partido.hora) && (
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                {data.hora || partido.hora}
-              </span>
-            )}
-            {campo && (
-              <span className="flex items-center gap-1 truncate max-w-[280px]" title={campo}>
-                <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                <span className="truncate">{campo}</span>
-              </span>
-            )}
-          </div>
-
-          {/* Acciones de Partido: «Cómo llegar» y «Añadir a mi calendario» */}
-          <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex flex-wrap items-center justify-center gap-2">
+          {/* Acciones de Partido: Píldoras compactas garantizadas en una sola línea */}
+          <div className={`mt-2.5 pt-2 border-t border-slate-800/60 grid ${campo ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 w-full`}>
             {campo && (
               <a
                 href={getGoogleMapsUrl(campo)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+                className="flex items-center justify-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[10px] sm:text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm truncate min-w-0"
                 title="Abrir ubicación en Google Maps"
               >
                 <Navigation className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Cómo llegar</span>
+                <span className="truncate">
+                  <span className="hidden xs:inline sm:inline">Cómo </span>llegar
+                </span>
               </a>
             )}
 
@@ -379,11 +389,11 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               })}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+              className="flex items-center justify-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[10px] sm:text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm truncate min-w-0"
               title="Añadir evento a Google Calendar"
             >
               <CalendarPlus className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span>Google Cal</span>
+              <span className="truncate">Google Cal</span>
             </a>
 
             <button
@@ -398,11 +408,13 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                   competicion: data.nombre_competicion,
                 })
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+              className="flex items-center justify-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[10px] sm:text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm truncate min-w-0"
               title="Descargar archivo .ics para Apple Calendar / Outlook / Móvil"
             >
               <Download className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>Descargar .ics</span>
+              <span className="truncate">
+                <span className="hidden xs:inline sm:inline">Descargar </span>.ics
+              </span>
             </button>
           </div>
         </div>
