@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CalendarioResponse, Jornada, PartidoCalendario } from '../types';
-import { ChevronLeft, ChevronRight, Shield, MapPin, Calendar as CalendarIcon, Clock, Sparkles, FileText } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  MapPin,
+  Calendar as CalendarIcon,
+  Clock,
+  Sparkles,
+  FileText,
+  Navigation,
+  CalendarPlus,
+} from 'lucide-react';
+import { getGoogleMapsUrl, downloadIcsFile } from '../utils/matchActions';
 
 interface CalendarSliderProps {
   calendario: CalendarioResponse | null;
@@ -326,13 +338,45 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                   </div>
                 </div>
 
-                {/* Botón / Indicador de ver acta oficial */}
-                <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 group-hover:text-red-400 transition-colors">
-                  <span className="flex items-center gap-1.5 font-medium">
+                {/* Botón / Indicador de ver acta oficial y acciones rápidas */}
+                <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1.5 font-medium group-hover:text-red-400 transition-colors">
                     <FileText className="w-3.5 h-3.5 text-red-500/70" />
-                    <span>Ver acta oficial y alineaciones</span>
+                    <span>Ver acta y alineaciones</span>
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
+
+                  <div className="flex items-center gap-1">
+                    {partido.campo && (
+                      <a
+                        href={getGoogleMapsUrl(partido.campo)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-emerald-500/40 text-slate-400 hover:text-emerald-400 transition-all"
+                        title={`Cómo llegar a ${partido.campo} (Google Maps)`}
+                      >
+                        <Navigation className="w-3 h-3" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadIcsFile({
+                          local: partido.equipo_local,
+                          visitante: partido.equipo_visitante,
+                          fecha: partido.fecha,
+                          hora: partido.hora,
+                          campo: partido.campo,
+                        });
+                      }}
+                      title="Añadir a mi calendario (.ics)"
+                      className="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-blue-500/40 text-slate-400 hover:text-blue-400 transition-all"
+                    >
+                      <CalendarPlus className="w-3 h-3" />
+                    </button>
+                    <ChevronRight className="w-3.5 h-3.5 ml-1 transform group-hover:translate-x-1 transition-transform text-slate-500" />
+                  </div>
                 </div>
               </div>
             );
@@ -607,13 +651,45 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
 
                 </div>
 
-                {/* Botón / Indicador de ver acta oficial */}
-                <div className="pt-2 border-t border-slate-800/50 flex items-center justify-between text-[11px] text-slate-400 group-hover:text-red-400 transition-colors">
-                  <span className="flex items-center gap-1.5 font-medium">
+                {/* Botón / Indicador de ver acta oficial y acciones rápidas */}
+                <div className="pt-2 border-t border-slate-800/50 flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1.5 font-medium group-hover:text-red-400 transition-colors">
                     <FileText className="w-3.5 h-3.5 text-red-500/70" />
                     <span>Ver acta y alineaciones</span>
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 transform group-hover:translate-x-0.5 transition-transform" />
+
+                  <div className="flex items-center gap-1">
+                    {partido.campo && (
+                      <a
+                        href={getGoogleMapsUrl(partido.campo)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-emerald-500/40 text-slate-400 hover:text-emerald-400 transition-all"
+                        title={`Cómo llegar a ${partido.campo} (Google Maps)`}
+                      >
+                        <Navigation className="w-3 h-3" />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadIcsFile({
+                          local: partido.equipo_local,
+                          visitante: partido.equipo_visitante,
+                          fecha: partido.fecha,
+                          hora: partido.hora,
+                          campo: partido.campo,
+                        });
+                      }}
+                      title="Añadir a mi calendario (.ics)"
+                      className="p-1.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-blue-500/40 text-slate-400 hover:text-blue-400 transition-all"
+                    >
+                      <CalendarPlus className="w-3 h-3" />
+                    </button>
+                    <ChevronRight className="w-3.5 h-3.5 ml-1 transform group-hover:translate-x-0.5 transition-transform text-slate-500" />
+                  </div>
                 </div>
 
               </div>

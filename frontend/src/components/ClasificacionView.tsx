@@ -167,19 +167,38 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
     setTeamError(null);
   };
 
-  const getRachaBadge = (tipo: string, color?: string) => {
-    const letter = tipo.toUpperCase();
-    let bg = color || '#64748b';
-    if (letter === 'G') bg = '#16a34a'; // verde
-    if (letter === 'E') bg = '#ca8a04'; // amarillo/ámbar
-    if (letter === 'P') bg = '#dc2626'; // rojo
+  /**
+ * Insignia visual para la racha de los últimos partidos:
+ * V (Victoria, verde), E (Empate, ámbar), D (Derrota, rojo).
+ */
+  const getRachaBadge = (tipo: string, color?: string, itemKey?: string) => {
+    const raw = (tipo || '').toUpperCase().trim();
+    let letter = 'V';
+    let label = 'Victoria';
+    let bg = '#10b981'; // emerald-500
+
+    if (raw === 'E') {
+      letter = 'E';
+      label = 'Empate';
+      bg = '#f59e0b'; // amber-500
+    } else if (raw === 'P' || raw === 'D') {
+      letter = 'D';
+      label = 'Derrota';
+      bg = '#ef4444'; // rose-500
+    } else if (raw === 'G' || raw === 'V') {
+      letter = 'V';
+      label = 'Victoria';
+      bg = '#10b981';
+    } else if (color) {
+      bg = color;
+    }
 
     return (
       <span
-        key={Math.random()}
+        key={itemKey}
         style={{ backgroundColor: bg }}
-        className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-sm"
-        title={`Partido: ${letter === 'G' ? 'Ganado' : letter === 'E' ? 'Empatado' : 'Perdido'}`}
+        className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-sm ring-1 ring-white/20 select-none"
+        title={`Resultado: ${label}`}
       >
         {letter}
       </span>
@@ -415,12 +434,12 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
         </div>
       ) : (
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl overflow-hidden backdrop-blur-md">
-          {/* Cabecera de la tabla */}
-          <div className="overflow-x-auto">
+          {/* Cabecera y tabla con scroll horizontal optimizado */}
+          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
-                  <th className="py-2.5 pl-3 pr-1 w-8 text-center">Pos</th>
+                <tr className="bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 whitespace-nowrap">
+                  <th className="py-2.5 pl-3 pr-1 w-9 text-center">Pos</th>
                   <th className="py-2.5 px-2">Equipo</th>
                   <th className="py-2.5 px-2 text-center font-black text-amber-400">PTS</th>
                   <th className="py-2.5 px-1.5 text-center">PJ</th>
@@ -432,15 +451,21 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
                       <th className="py-2.5 px-1.5 text-center">GF</th>
                       <th className="py-2.5 px-1.5 text-center">GC</th>
                       <th className="py-2.5 px-2 text-center font-mono">DIF</th>
-                      <th className="py-2.5 pr-3 pl-2 text-center">Racha</th>
+                      <th className="py-2.5 pr-3 pl-2 text-center min-w-[92px]">Racha (Últ. 5)</th>
                     </>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
+              <tbody className="divide-y divide-slate-800/60 font-sans whitespace-nowrap">
                 {clasificacionData.clasificacion.map((equipo: ClasificacionEquipo) => {
                   const isFav = favoriteTeamCodes.includes(equipo.codequipo);
-                  const colorAccent = equipo.color || 'transparent';
+                  const posNum = parseInt(equipo.posicion, 10);
+                  const promocion = clasificacionData.promociones.find(
+                    (p) =>
+                      equipo.color &&
+                      p.color_promocion.toLowerCase() === equipo.color.toLowerCase()
+                  );
+                  const promoColor = equipo.color || promocion?.color_promocion;
 
                   // Valores según el ámbito activo
                   const pts =
@@ -482,23 +507,33 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
                     <tr
                       key={equipo.codequipo}
                       onClick={() => handleOpenTeam(equipo.codequipo)}
-                      className={`hover:bg-slate-800/50 active:bg-slate-800/80 cursor-pointer transition-colors ${
+                      style={
+                        promoColor
+                          ? { borderLeft: `3.5px solid ${promoColor}` }
+                          : { borderLeft: '3.5px solid transparent' }
+                      }
+                      className={`hover:bg-slate-800/60 active:bg-slate-800/90 cursor-pointer transition-colors ${
                         isFav ? 'bg-amber-500/10' : ''
                       }`}
                     >
-                      {/* Posición con barra de color de promoción */}
-                      <td className="py-2.5 pl-3 pr-1 text-center font-mono text-[11px] font-bold relative">
-                        {equipo.color && (
-                          <span
-                            style={{ backgroundColor: colorAccent }}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r"
-                          />
-                        )}
+                      {/* Posición destacada con badge de zona */}
+                      <td className="py-2.5 pl-2.5 pr-1 text-center font-mono text-[11px] font-bold">
                         <span
-                          className={`inline-block ${
-                            parseInt(equipo.posicion, 10) <= 3
-                              ? 'text-amber-400 font-extrabold'
-                              : 'text-slate-300'
+                          style={
+                            promoColor
+                              ? {
+                                  backgroundColor: `${promoColor}22`,
+                                  color: promoColor,
+                                  borderColor: `${promoColor}55`,
+                                }
+                              : undefined
+                          }
+                          className={`inline-flex items-center justify-center min-w-[22px] h-[22px] px-1 rounded-lg border ${
+                            promoColor
+                              ? ''
+                              : posNum <= 3
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                              : 'bg-slate-950/60 text-slate-300 border-slate-800'
                           }`}
                         >
                           {equipo.posicion}
@@ -507,7 +542,7 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
 
                       {/* Escudo y Nombre del Equipo */}
                       <td className="py-2.5 px-2">
-                        <div className="flex items-center gap-2 max-w-[150px] sm:max-w-[200px]">
+                        <div className="flex items-center gap-2 max-w-[150px] sm:max-w-[220px]">
                           {equipo.escudo ? (
                             <img
                               src={equipo.escudo}
@@ -570,13 +605,19 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
                           >
                             {equipo.diferencia_goles}
                           </td>
-                          {/* Racha */}
+                          {/* Racha visual con V/E/D */}
                           <td className="py-2.5 pr-3 pl-2">
                             <div className="flex items-center justify-center gap-1">
-                              {equipo.racha_partidos.length > 0 ? (
+                              {equipo.racha_partidos && equipo.racha_partidos.length > 0 ? (
                                 equipo.racha_partidos
                                   .slice(-5)
-                                  .map((r) => getRachaBadge(r.tipo, r.color))
+                                  .map((r, rIdx) =>
+                                    getRachaBadge(
+                                      r.tipo,
+                                      r.color,
+                                      `${equipo.codequipo}-racha-${rIdx}`
+                                    )
+                                  )
                               ) : (
                                 <span className="text-[10px] text-slate-600">-</span>
                               )}
@@ -591,21 +632,64 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
             </table>
           </div>
 
-          {/* Leyenda de Promociones si existen */}
-          {clasificacionData.promociones.length > 0 && (
-            <div className="p-3 bg-slate-950/60 border-t border-slate-800/80 flex flex-wrap items-center gap-3 text-[10px] text-slate-400">
-              <span className="font-semibold text-slate-300">Zonas:</span>
-              {clasificacionData.promociones.map((prom) => (
-                <div key={prom.orden} className="flex items-center gap-1.5">
-                  <span
-                    style={{ backgroundColor: prom.color_promocion }}
-                    className="w-2.5 h-2.5 rounded-full inline-block"
-                  />
-                  <span>{prom.nombre_promocion}</span>
-                </div>
-              ))}
+          {/* Leyenda de Promociones y Racha */}
+          <div className="p-3.5 bg-slate-950/80 border-t border-slate-800/80 space-y-2 text-xs">
+            {/* Zonas de Clasificación */}
+            {clasificacionData.promociones && clasificacionData.promociones.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                  Zonas:
+                </span>
+                {clasificacionData.promociones.map((prom) => {
+                  const equiposDeZona = clasificacionData.clasificacion.filter(
+                    (eq) => eq.color && eq.color.toLowerCase() === prom.color_promocion.toLowerCase()
+                  );
+                  const posIni = equiposDeZona[0]?.posicion;
+                  const posFin = equiposDeZona[equiposDeZona.length - 1]?.posicion;
+                  const rango = posIni
+                    ? posIni === posFin
+                      ? `(${posIni}º)`
+                      : `(${posIni}º - ${posFin}º)`
+                    : '';
+
+                  return (
+                    <div
+                      key={prom.orden}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300"
+                    >
+                      <span
+                        style={{ backgroundColor: prom.color_promocion }}
+                        className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-sm"
+                      />
+                      <span className="font-medium text-slate-200">{prom.nombre_promocion}</span>
+                      {rango && (
+                        <span className="text-[10px] font-mono text-slate-500">{rango}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Leyenda de Racha y Ayuda de Interacción */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/50 text-[10px] text-slate-500">
+              <div className="flex items-center gap-2.5">
+                <span className="font-semibold text-slate-400">Forma:</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Victoria (V)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Empate (E)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> Derrota (D)
+                </span>
+              </div>
+              <span className="italic text-slate-500 hidden sm:inline">
+                Toca cualquier equipo para ver su plantilla
+              </span>
             </div>
-          )}
+          </div>
         </div>
       )}
 

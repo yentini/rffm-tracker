@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ActaPartido, PartidoCalendario, PlayerDetail } from '../types';
 import { fetchPlayerDetail } from '../services/api';
 import { PlayerDetailModal } from './PlayerDetailModal';
+import {
+  getGoogleMapsUrl,
+  getGoogleCalendarUrl,
+  downloadIcsFile,
+} from '../utils/matchActions';
 import {
   X,
   Shield,
@@ -12,6 +17,9 @@ import {
   Loader2,
   ExternalLink,
   ChevronRight,
+  Navigation,
+  CalendarPlus,
+  Download,
 } from 'lucide-react';
 
 interface MatchDetailModalProps {
@@ -74,15 +82,14 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
     setPlayerDetailError(null);
   };
 
-  if (!isOpen || !partido) return null;
-
+  const safePartido = partido || ({} as Partial<PartidoCalendario>);
   const data = acta || ({} as Partial<ActaPartido>);
-  const equipoLocal = data.equipo_local || partido.equipo_local;
-  const equipoVisitante = data.equipo_visitante || partido.equipo_visitante;
-  const escudoLocal = getEscudoUrl(data.escudo_local || partido.escudo_equipo_local);
-  const escudoVisitante = getEscudoUrl(data.escudo_visitante || partido.escudo_equipo_visitante);
-  const golesLocal = data.goles_local ?? partido.goles_local;
-  const golesVisitante = data.goles_visitante ?? partido.goles_visitante;
+  const equipoLocal = data.equipo_local || safePartido.equipo_local || '';
+  const equipoVisitante = data.equipo_visitante || safePartido.equipo_visitante || '';
+  const escudoLocal = getEscudoUrl(data.escudo_local || safePartido.escudo_equipo_local);
+  const escudoVisitante = getEscudoUrl(data.escudo_visitante || safePartido.escudo_equipo_visitante);
+  const golesLocal = data.goles_local ?? safePartido.goles_local;
+  const golesVisitante = data.goles_visitante ?? safePartido.goles_visitante;
   const hasScore = golesLocal !== null && golesLocal !== undefined && golesVisitante !== null && golesVisitante !== undefined;
 
   const golesLocalList = data.goles_equipo_local || [];
@@ -98,8 +105,127 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 
   const titularesVisitante = jugadoresVisitante.filter((j) => j.titular === '1');
   const suplentesVisitante = jugadoresVisitante.filter((j) => j.suplente === '1' || j.titular === '0');
-
   const arbitros = data.arbitros_partido || [];
+
+  const campo = data.campo || safePartido.campo;
+
+  // Resolución de código de jugador por nombre si no viene directo en el evento
+  const findPlayerCode = (nombre?: string | null, codDirecto?: string | null): string | null => {
+    if (codDirecto && codDirecto.trim()) return codDirecto.trim();
+    if (!nombre || !nombre.trim()) return null;
+    const norm = nombre.trim().toLowerCase();
+    const allPlayers = [...jugadoresLocal, ...jugadoresVisitante];
+    const match = allPlayers.find(
+      (j) => j.nombre_jugador && j.nombre_jugador.trim().toLowerCase() === norm
+    );
+    return match?.codjugador || null;
+  };
+
+  // Timeline cronológico unificado de goles y tarjetas
+  interface MatchTimelineEvent {
+    id: string;
+    minuto: number;
+    minutoRaw: string;
+    equipo: 'local' | 'visitante';
+    nombreEquipo: string;
+    tipo: 'gol' | 'tarjeta';
+    titulo: string;
+    detalle?: string | null;
+    nombreJugador: string;
+    codjugador?: string | null;
+    icono: 'gol' | 'amarilla' | 'roja' | 'doble_amarilla';
+  }
+
+  const timelineEvents = useMemo<MatchTimelineEvent[]>(() => {
+    const events: MatchTimelineEvent[] = [];
+
+    // Goles locales
+    golesLocalList.forEach((g, i) => {
+      const minNum = parseInt(g.minuto || '0', 10) || 0;
+      events.push({
+        id: `gol-loc-${i}`,
+        minuto: minNum,
+        minutoRaw: g.minuto || '?',
+        equipo: 'local',
+        nombreEquipo: equipoLocal,
+        tipo: 'gol',
+        titulo: 'Gol',
+        detalle: g.tipo_gol && g.tipo_gol.toLowerCase() !== 'normal' ? g.tipo_gol : null,
+        nombreJugador: g.nombre_jugador || 'Goleador',
+        codjugador: findPlayerCode(g.nombre_jugador, g.codjugador),
+        icono: 'gol',
+      });
+    });
+
+    // Goles visitantes
+    golesVisitanteList.forEach((g, i) => {
+      const minNum = parseInt(g.minuto || '0', 10) || 0;
+      events.push({
+        id: `gol-vis-${i}`,
+        minuto: minNum,
+        minutoRaw: g.minuto || '?',
+        equipo: 'visitante',
+        nombreEquipo: equipoVisitante,
+        tipo: 'gol',
+        titulo: 'Gol',
+        detalle: g.tipo_gol && g.tipo_gol.toLowerCase() !== 'normal' ? g.tipo_gol : null,
+        nombreJugador: g.nombre_jugador || 'Goleador',
+        codjugador: findPlayerCode(g.nombre_jugador, g.codjugador),
+        icono: 'gol',
+      });
+    });
+
+    // Tarjetas locales
+    tarjetasLocalList.forEach((t, i) => {
+      const minNum = parseInt(t.minuto || '0', 10) || 0;
+      const isRed = t.codigo_tipo_amonestacion === '200';
+      const isSecondYellow = t.segunda_amarilla === '1';
+      events.push({
+        id: `tar-loc-${i}`,
+        minuto: minNum,
+        minutoRaw: t.minuto || '?',
+        equipo: 'local',
+        nombreEquipo: equipoLocal,
+        tipo: 'tarjeta',
+        titulo: isRed ? 'Tarjeta Roja' : isSecondYellow ? 'Doble Amarilla' : 'Tarjeta Amarilla',
+        nombreJugador: t.nombre_jugador || 'Jugador',
+        codjugador: findPlayerCode(t.nombre_jugador, t.codjugador),
+        icono: isRed ? 'roja' : isSecondYellow ? 'doble_amarilla' : 'amarilla',
+      });
+    });
+
+    // Tarjetas visitantes
+    tarjetasVisitanteList.forEach((t, i) => {
+      const minNum = parseInt(t.minuto || '0', 10) || 0;
+      const isRed = t.codigo_tipo_amonestacion === '200';
+      const isSecondYellow = t.segunda_amarilla === '1';
+      events.push({
+        id: `tar-vis-${i}`,
+        minuto: minNum,
+        minutoRaw: t.minuto || '?',
+        equipo: 'visitante',
+        nombreEquipo: equipoVisitante,
+        tipo: 'tarjeta',
+        titulo: isRed ? 'Tarjeta Roja' : isSecondYellow ? 'Doble Amarilla' : 'Tarjeta Amarilla',
+        nombreJugador: t.nombre_jugador || 'Jugador',
+        codjugador: findPlayerCode(t.nombre_jugador, t.codjugador),
+        icono: isRed ? 'roja' : isSecondYellow ? 'doble_amarilla' : 'amarilla',
+      });
+    });
+
+    return events.sort((a, b) => a.minuto - b.minuto);
+  }, [
+    golesLocalList,
+    golesVisitanteList,
+    tarjetasLocalList,
+    tarjetasVisitanteList,
+    jugadoresLocal,
+    jugadoresVisitante,
+    equipoLocal,
+    equipoVisitante,
+  ]);
+
+  if (!isOpen || !partido) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md transition-opacity animate-in fade-in">
@@ -211,12 +337,65 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 {data.hora || partido.hora}
               </span>
             )}
-            {(data.campo || partido.campo) && (
-              <span className="flex items-center gap-1 truncate max-w-[280px]" title={data.campo || partido.campo || ''}>
+            {campo && (
+              <span className="flex items-center gap-1 truncate max-w-[280px]" title={campo}>
                 <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                <span className="truncate">{data.campo || partido.campo}</span>
+                <span className="truncate">{campo}</span>
               </span>
             )}
+          </div>
+
+          {/* Acciones de Partido: «Cómo llegar» y «Añadir a mi calendario» */}
+          <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex flex-wrap items-center justify-center gap-2">
+            {campo && (
+              <a
+                href={getGoogleMapsUrl(campo)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+                title="Abrir ubicación en Google Maps"
+              >
+                <Navigation className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Cómo llegar</span>
+              </a>
+            )}
+
+            <a
+              href={getGoogleCalendarUrl({
+                local: equipoLocal,
+                visitante: equipoVisitante,
+                fecha: data.fecha || partido.fecha,
+                hora: data.hora || partido.hora,
+                campo: campo,
+                competicion: data.nombre_competicion,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+              title="Añadir evento a Google Calendar"
+            >
+              <CalendarPlus className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span>Google Cal</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() =>
+                downloadIcsFile({
+                  local: equipoLocal,
+                  visitante: equipoVisitante,
+                  fecha: data.fecha || partido.fecha,
+                  hora: data.hora || partido.hora,
+                  campo: campo,
+                  competicion: data.nombre_competicion,
+                })
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold border border-slate-700/80 transition-all active:scale-95 shadow-sm"
+              title="Descargar archivo .ics para Apple Calendar / Outlook / Móvil"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Descargar .ics</span>
+            </button>
           </div>
         </div>
 
@@ -270,104 +449,126 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">{error}</p>
             </div>
           ) : activeTab === 'incidencias' ? (
-            <div className="space-y-4">
-              {/* GOLES */}
-              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <span>⚽ Goles</span>
-                  <span className="text-[10px] text-slate-500">
-                    ({golesLocalList.length + golesVisitanteList.length})
+            <div className="space-y-3.5">
+              {/* Resumen numérico de incidencias */}
+              <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs">
+                <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
+                  Cronología del encuentro
+                </span>
+                <div className="flex items-center gap-2.5 sm:gap-3 text-[11px]">
+                  <span className="flex items-center gap-1 text-emerald-400 font-bold" title="Goles totales">
+                    <span>⚽</span> {golesLocalList.length + golesVisitanteList.length}
                   </span>
-                </h4>
-
-                {golesLocalList.length === 0 && golesVisitanteList.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No hay goles registrados para este encuentro.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {/* Goles Locales */}
-                    {golesLocalList.map((gol, i) => (
-                      <div key={`gol-loc-${i}`} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="font-extrabold text-emerald-400">{gol.minuto}'</span>
-                          <span className="text-white font-medium truncate">{gol.nombre_jugador}</span>
-                        </div>
-                        <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                          {equipoLocal}
-                        </span>
-                      </div>
-                    ))}
-
-                    {/* Goles Visitantes */}
-                    {golesVisitanteList.map((gol, i) => (
-                      <div key={`gol-vis-${i}`} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="font-extrabold text-emerald-400">{gol.minuto}'</span>
-                          <span className="text-white font-medium truncate">{gol.nombre_jugador}</span>
-                        </div>
-                        <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                          {equipoVisitante}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <span className="flex items-center gap-1 text-amber-400 font-bold" title="Tarjetas amarillas">
+                    <span className="w-2.5 h-3 bg-amber-400 rounded-xs inline-block" />{' '}
+                    {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length +
+                      tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion !== '200' && t.segunda_amarilla !== '1').length}
+                  </span>
+                  <span className="flex items-center gap-1 text-rose-400 font-bold" title="Tarjetas rojas">
+                    <span className="w-2.5 h-3 bg-rose-500 rounded-xs inline-block" />{' '}
+                    {tarjetasLocalList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length +
+                      tarjetasVisitanteList.filter((t) => t.codigo_tipo_amonestacion === '200' || t.segunda_amarilla === '1').length}
+                  </span>
+                </div>
               </div>
 
-              {/* TARJETAS */}
-              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <span>🟨 Tarjetas & Sanciones</span>
-                  <span className="text-[10px] text-slate-500">
-                    ({tarjetasLocalList.length + tarjetasVisitanteList.length})
-                  </span>
-                </h4>
+              {timelineEvents.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 bg-slate-950/40 rounded-2xl border border-slate-800">
+                  <p className="text-xs italic">No hay goles ni amonestaciones registradas en el acta oficial.</p>
+                </div>
+              ) : (
+                <div className="relative pl-5 sm:pl-7 space-y-2.5 before:absolute before:left-2.5 sm:before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80">
+                  {timelineEvents.map((event) => {
+                    const isLocal = event.equipo === 'local';
+                    const isGoal = event.tipo === 'gol';
+                    const isRed = event.icono === 'roja' || event.icono === 'doble_amarilla';
 
-                {tarjetasLocalList.length === 0 && tarjetasVisitanteList.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No se registraron amonestaciones en el acta.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {/* Tarjetas Locales */}
-                    {tarjetasLocalList.map((tar, i) => {
-                      const isRed = tar.codigo_tipo_amonestacion === '200' || tar.segunda_amarilla === '1';
-                      return (
-                        <div key={`tar-loc-${i}`} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`w-3.5 h-4 rounded-sm flex items-center justify-center font-bold text-[9px] ${
-                              isRed ? 'bg-red-500 text-white' : 'bg-amber-400 text-black'
-                            }`}>
-                              {tar.minuto}'
-                            </span>
-                            <span className="text-white font-medium truncate">{tar.nombre_jugador}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                            {equipoLocal}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    return (
+                      <div
+                        key={event.id}
+                        className="relative flex items-center gap-2.5 p-2.5 sm:p-3 rounded-2xl bg-slate-950/70 border border-slate-800/90 hover:border-slate-700 transition-all text-xs shadow-sm"
+                      >
+                        {/* Nodo del timeline */}
+                        <span
+                          className={`absolute -left-[18px] sm:-left-[22px] w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${
+                            isGoal
+                              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]'
+                              : isRed
+                              ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]'
+                              : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]'
+                          }`}
+                        />
 
-                    {/* Tarjetas Visitantes */}
-                    {tarjetasVisitanteList.map((tar, i) => {
-                      const isRed = tar.codigo_tipo_amonestacion === '200' || tar.segunda_amarilla === '1';
-                      return (
-                        <div key={`tar-vis-${i}`} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                          <div className="flex items-center gap-2 truncate">
-                            <span className={`w-3.5 h-4 rounded-sm flex items-center justify-center font-bold text-[9px] ${
-                              isRed ? 'bg-red-500 text-white' : 'bg-amber-400 text-black'
-                            }`}>
-                              {tar.minuto}'
+                        {/* Minuto */}
+                        <span className="w-9 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-white shrink-0 shadow-inner">
+                          {event.minutoRaw}'
+                        </span>
+
+                        {/* Icono del evento */}
+                        <div className="shrink-0 flex items-center justify-center w-5">
+                          {isGoal ? (
+                            <span className="text-base select-none" role="img" aria-label="Gol">
+                              ⚽
                             </span>
-                            <span className="text-white font-medium truncate">{tar.nombre_jugador}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                            {equipoVisitante}
-                          </span>
+                          ) : isRed ? (
+                            <span
+                              className="w-3.5 h-4.5 rounded-xs bg-rose-600 border border-rose-400 inline-block shadow-sm"
+                              title="Tarjeta Roja"
+                            />
+                          ) : (
+                            <span
+                              className="w-3.5 h-4.5 rounded-xs bg-amber-400 border border-amber-300 inline-block shadow-sm"
+                              title="Tarjeta Amarilla"
+                            />
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+
+                        {/* Contenido: Nombre de jugador interactivo y equipo */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {event.codjugador ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPlayer(event.codjugador)}
+                                className="group/player inline-flex items-center gap-1 font-bold text-white hover:text-blue-300 transition-colors text-xs text-left"
+                                title="Ver ficha del jugador"
+                              >
+                                <span className="underline decoration-dotted underline-offset-2">
+                                  {event.nombreJugador}
+                                </span>
+                                <ExternalLink className="w-2.5 h-2.5 text-slate-500 group-hover/player:text-blue-400 shrink-0" />
+                              </button>
+                            ) : (
+                              <span className="font-bold text-slate-200 text-xs">
+                                {event.nombreJugador}
+                              </span>
+                            )}
+
+                            {event.detalle && (
+                              <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                                {event.detalle}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                            <span
+                              className={`font-semibold px-1.5 py-0.2 rounded ${
+                                isLocal
+                                  ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
+                                  : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
+                              }`}
+                            >
+                              {isLocal ? 'Local' : 'Visitante'}: {event.nombreEquipo}
+                            </span>
+                            <span>• {event.titulo}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : activeTab === 'alineaciones' ? (
             <div className="space-y-4">
@@ -533,12 +734,26 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               </div>
 
               {/* Instalación */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
-                <h4 className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Instalación Deportiva</span>
-                </h4>
-                <p className="text-white font-medium">{data.campo || partido.campo || 'Por definir'}</p>
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Instalación Deportiva</span>
+                  </h4>
+                  {campo && (
+                    <a
+                      href={getGoogleMapsUrl(campo)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/30 transition-all"
+                      title="Navegar en Google Maps"
+                    >
+                      <Navigation className="w-3 h-3" />
+                      <span>Abrir Maps</span>
+                    </a>
+                  )}
+                </div>
+                <p className="text-white font-medium">{campo || 'Por definir'}</p>
                 {data.codigo_campo && (
                   <p className="text-[11px] text-slate-500">Cód. Campo: {data.codigo_campo}</p>
                 )}
