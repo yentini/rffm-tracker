@@ -1,6 +1,7 @@
-import { FavoriteTeam } from '../types';
+import { FavoriteTeam, FavoriteCampo } from '../types';
 
 const FAVORITES_STORAGE_KEY = 'rfef_tracker_favorite_teams';
+const FAVORITE_CAMPOS_STORAGE_KEY = 'rfef_tracker_favorite_campos';
 
 /**
  * Genera una clave única compuesta para identificar a un equipo dentro de una liga y grupo.
@@ -145,4 +146,82 @@ export function setPrimaryFavorite(
   );
   if (index <= 0) return current;
   return moveFavorite(index, 0);
+}
+
+// -------------------------------------------------------------
+// GESTIÓN DE SEDES / CAMPOS FAVORITOS
+// -------------------------------------------------------------
+
+/**
+ * Lee la lista de sedes/campos favoritos almacenados en localStorage.
+ */
+export function getFavoriteCampos(): FavoriteCampo[] {
+  try {
+    const data = localStorage.getItem(FAVORITE_CAMPOS_STORAGE_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Error al leer campos favoritos desde localStorage:', error);
+    return [];
+  }
+}
+
+/**
+ * Persiste la lista de campos favoritos en localStorage.
+ */
+function persistFavoriteCampos(campos: FavoriteCampo[]): void {
+  try {
+    localStorage.setItem(FAVORITE_CAMPOS_STORAGE_KEY, JSON.stringify(campos));
+  } catch (error) {
+    console.error('Error al guardar campos favoritos en localStorage:', error);
+  }
+}
+
+/**
+ * Comprueba si un campo/sede ya está en favoritos.
+ */
+export function isFavoriteCampo(campos: FavoriteCampo[], codigoCampo: string): boolean {
+  if (!codigoCampo) return false;
+  return campos.some((c) => c.codigoCampo === codigoCampo);
+}
+
+/**
+ * Añade una sede a favoritos.
+ */
+export function addFavoriteCampo(campo: FavoriteCampo): FavoriteCampo[] {
+  const current = getFavoriteCampos();
+  const filtered = current.filter((c) => c.codigoCampo !== campo.codigoCampo);
+  const updated = [campo, ...filtered];
+  persistFavoriteCampos(updated);
+  return updated;
+}
+
+/**
+ * Elimina una sede de favoritos.
+ */
+export function removeFavoriteCampo(codigoCampo: string): FavoriteCampo[] {
+  const current = getFavoriteCampos();
+  const updated = current.filter((c) => c.codigoCampo !== codigoCampo);
+  persistFavoriteCampos(updated);
+  return updated;
+}
+
+/**
+ * Alterna el estado de favorito de una sede (añade si no existe, elimina si existe).
+ */
+export function toggleFavoriteCampo(campo: FavoriteCampo): {
+  isFav: boolean;
+  campos: FavoriteCampo[];
+} {
+  const current = getFavoriteCampos();
+  const exists = isFavoriteCampo(current, campo.codigoCampo);
+
+  if (exists) {
+    const updated = removeFavoriteCampo(campo.codigoCampo);
+    return { isFav: false, campos: updated };
+  } else {
+    const updated = addFavoriteCampo(campo);
+    return { isFav: true, campos: updated };
+  }
 }

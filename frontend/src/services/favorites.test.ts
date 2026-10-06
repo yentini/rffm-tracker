@@ -8,6 +8,11 @@ import {
   getFavoriteKey,
   moveFavorite,
   setPrimaryFavorite,
+  getFavoriteCampos,
+  addFavoriteCampo,
+  removeFavoriteCampo,
+  toggleFavoriteCampo,
+  isFavoriteCampo,
 } from './favorites';
 import { FavoriteTeam } from '../types';
 
@@ -145,5 +150,36 @@ describe('Favorites Service (localStorage cache)', () => {
     const updated = setPrimaryFavorite('1001', '2001', '3001');
     expect(updated[0].teamId).toBe('1001');
     expect(updated[1].teamId).toBe('1002');
+  });
+
+  describe('Sedes / Campos Favoritos', () => {
+    const sampleCampo = {
+      codigoCampo: 'campo-101',
+      nombreCampo: 'Ernesto Cotorruelo 1',
+      localidad: 'Madrid',
+      savedAt: Date.now(),
+    };
+
+    it('debe guardar, consultar y alternar una sede favorita', () => {
+      expect(getFavoriteCampos()).toHaveLength(0);
+      expect(isFavoriteCampo([], 'campo-101')).toBe(false);
+
+      const added = addFavoriteCampo(sampleCampo);
+      expect(added).toHaveLength(1);
+      expect(getFavoriteCampos()).toHaveLength(1);
+      expect(isFavoriteCampo(added, 'campo-101')).toBe(true);
+
+      const toggledOff = toggleFavoriteCampo(sampleCampo);
+      expect(toggledOff.isFav).toBe(false);
+      expect(getFavoriteCampos()).toHaveLength(0);
+
+      const toggledOn = toggleFavoriteCampo(sampleCampo);
+      expect(toggledOn.isFav).toBe(true);
+      expect(getFavoriteCampos()).toHaveLength(1);
+
+      const removed = removeFavoriteCampo('campo-101');
+      expect(removed).toHaveLength(0);
+      expect(getFavoriteCampos()).toHaveLength(0);
+    });
   });
 });

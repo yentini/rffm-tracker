@@ -12,11 +12,14 @@ import {
   ChevronRight,
   X,
   Shield,
+  Star,
 } from 'lucide-react';
 import { CampoScheduleModal } from './CampoScheduleModal';
 
 interface CamposViewProps {
   onSelectActa?: (codacta: string) => void;
+  favoriteCampoIds?: string[];
+  onToggleFavoriteCampo?: (campo: CampoItem) => void;
 }
 
 const POPULAR_SEDES = [
@@ -30,7 +33,11 @@ const POPULAR_SEDES = [
   'Alcobendas',
 ];
 
-export const CamposView: React.FC<CamposViewProps> = ({ onSelectActa }) => {
+export const CamposView: React.FC<CamposViewProps> = ({
+  onSelectActa,
+  favoriteCampoIds = [],
+  onToggleFavoriteCampo,
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [campos, setCampos] = useState<CampoItem[]>([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
@@ -223,7 +230,33 @@ export const CamposView: React.FC<CamposViewProps> = ({ onSelectActa }) => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {onToggleFavoriteCampo && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavoriteCampo(campo);
+                      }}
+                      title={
+                        favoriteCampoIds.includes(campo.codigo)
+                          ? 'Quitar de sedes favoritas'
+                          : 'Añadir a sedes favoritas'
+                      }
+                      className={`p-2 rounded-xl transition-all active:scale-90 ${
+                        favoriteCampoIds.includes(campo.codigo)
+                          ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
+                          : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Star
+                        className={`w-4 h-4 ${
+                          favoriteCampoIds.includes(campo.codigo) ? 'fill-emerald-400' : ''
+                        }`}
+                      />
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -250,6 +283,8 @@ export const CamposView: React.FC<CamposViewProps> = ({ onSelectActa }) => {
           nombreCampoFallback={selectedCampo.nombre}
           onClose={() => setSelectedCampo(null)}
           onSelectActa={onSelectActa}
+          isFavorite={favoriteCampoIds.includes(selectedCampo.codigo)}
+          onToggleFavorite={() => onToggleFavoriteCampo && onToggleFavoriteCampo(selectedCampo)}
         />
       )}
     </div>

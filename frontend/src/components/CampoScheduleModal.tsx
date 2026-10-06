@@ -11,6 +11,7 @@ import {
   Trophy,
   AlertCircle,
   Shield,
+  Star,
 } from 'lucide-react';
 
 interface CampoScheduleModalProps {
@@ -19,6 +20,8 @@ interface CampoScheduleModalProps {
   selectedDateFilter?: string | null;
   onClose: () => void;
   onSelectActa?: (codacta: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (campoData?: CampoDetailResponse) => void;
 }
 
 interface MatchNameOverride {
@@ -44,6 +47,8 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
   selectedDateFilter,
   onClose,
   onSelectActa,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const [campoData, setCampoData] = useState<CampoDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -316,13 +321,30 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all shrink-0"
-              aria-label="Cerrar modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={() => onToggleFavorite(campoData || undefined)}
+                  title={isFavorite ? 'Quitar de sedes favoritas' : 'Añadir a sedes favoritas'}
+                  className={`p-2 rounded-xl transition-all active:scale-90 ${
+                    isFavorite
+                      ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
+                      : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'
+                  }`}
+                  aria-label={isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                >
+                  <Star className={`w-5 h-5 ${isFavorite ? 'fill-emerald-400' : ''}`} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                aria-label="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Badges de instalación y cómo llegar */}

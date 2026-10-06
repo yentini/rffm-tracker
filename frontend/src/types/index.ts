@@ -221,6 +221,17 @@ export interface FavoriteTeam {
   savedAt: number;
 }
 
+export interface FavoriteCampo {
+  codigoCampo: string;
+  nombreCampo: string;
+  localidad?: string | null;
+  direccion?: string | null;
+  clubAsociado?: string | null;
+  superficie?: string | null;
+  tipoCampo?: string | null;
+  savedAt: number;
+}
+
 export interface Club {
   codigo_club: string;
   nombre: string;

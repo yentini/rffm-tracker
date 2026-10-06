@@ -11,12 +11,15 @@ import {
   Users,
   ChevronRight,
   AlertCircle,
+  Star,
 } from 'lucide-react';
 
 interface SmartTeamSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectTeam: (team: DeduceTeamResult) => void;
+  favoriteTeamCodes?: string[];
+  onToggleFavorite?: (team: DeduceTeamResult) => void;
 }
 
 const CATEGORY_CHIPS = [
@@ -68,6 +71,8 @@ export const SmartTeamSearchModal: React.FC<SmartTeamSearchModalProps> = ({
   isOpen,
   onClose,
   onSelectTeam,
+  favoriteTeamCodes = [],
+  onToggleFavorite,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCat, setSelectedCat] = useState('Todos');
@@ -386,7 +391,34 @@ export const SmartTeamSearchModal: React.FC<SmartTeamSearchModalProps> = ({
                       )}
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-white transition-colors shrink-0" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {onToggleFavorite && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFavorite(t);
+                        }}
+                        title={
+                          favoriteTeamCodes.includes(t.codigo_equipo)
+                            ? 'Quitar de equipos favoritos'
+                            : 'Añadir a equipos favoritos'
+                        }
+                        className={`p-2 rounded-xl transition-all active:scale-90 ${
+                          favoriteTeamCodes.includes(t.codigo_equipo)
+                            ? 'text-amber-400 bg-amber-500/10 border border-amber-500/30'
+                            : 'text-slate-500 hover:text-amber-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <Star
+                          className={`w-4 h-4 ${
+                            favoriteTeamCodes.includes(t.codigo_equipo) ? 'fill-amber-400' : ''
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-white transition-colors" />
+                  </div>
                 </div>
               ))}
             </div>

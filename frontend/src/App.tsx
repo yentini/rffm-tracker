@@ -25,6 +25,9 @@ import {
   toggleFavorite,
   moveFavorite,
   setPrimaryFavorite,
+  getFavoriteCampos,
+  removeFavoriteCampo,
+  toggleFavoriteCampo,
 } from './services/favorites';
 import {
   ActaPartido,
@@ -32,6 +35,7 @@ import {
   Competition,
   DeduceTeamResult,
   EquipoGrupo,
+  FavoriteCampo,
   FavoriteTeam,
   GameType,
   Group,
@@ -48,6 +52,9 @@ export function App() {
 
   // Estado para equipos favoritos almacenados en localStorage
   const [favorites, setFavorites] = useState<FavoriteTeam[]>(() => getFavorites());
+
+  // Estado para sedes/campos favoritos almacenados en localStorage
+  const [favoriteCampos, setFavoriteCampos] = useState<FavoriteCampo[]>(() => getFavoriteCampos());
 
   // Al iniciar una nueva sesión, si existen favoritos, preseleccionamos el primer equipo por defecto
   const initialFavorite = favorites.length > 0 ? favorites[0] : null;
@@ -360,6 +367,67 @@ export function App() {
     setActiveTab('partidos');
   };
 
+  // Alternar favorito de sede/campo
+  const handleToggleFavoriteCampo = (campo: any) => {
+    const campoId = campo.codigo || campo.campoId;
+    if (!campoId) return;
+
+    const nombre = campo.nombre || campo.nombre_campo || 'Instalación Deportiva';
+    const direccion = campo.direccion || null;
+    const localidad = campo.localidad || null;
+    const superficie = campo.superficie || campo.superficie_juego || null;
+    const tipoCampo = campo.tipoCampo || campo.tipo_campo || null;
+    const clubAsociado = campo.clubAsociado || campo.club_asociado || null;
+
+    const favCampoItem: FavoriteCampo = {
+      codigoCampo: String(campoId),
+      nombreCampo: nombre,
+      direccion,
+      localidad,
+      superficie,
+      tipoCampo,
+      clubAsociado,
+      savedAt: Date.now(),
+    };
+
+    const { campos: updated } = toggleFavoriteCampo(favCampoItem);
+    setFavoriteCampos(updated);
+  };
+
+  // Eliminar sede de favoritos
+  const handleRemoveFavoriteCampo = (campoId: string) => {
+    const updated = removeFavoriteCampo(campoId);
+    setFavoriteCampos(updated);
+  };
+
+  // Seleccionar sede favorita para abrir su agenda de partidos
+  const handleSelectFavoriteCampo = (favCampo: FavoriteCampo) => {
+    setSelectedCampoForModal({
+      codigoCampo: favCampo.codigoCampo,
+      nombreCampoFallback: favCampo.nombreCampo,
+    });
+  };
+
+  // Alternar favorito de equipo deducido tras búsqueda rápida
+  const handleToggleFavoriteFromDeduce = (team: DeduceTeamResult) => {
+    const favoriteItem: FavoriteTeam = {
+      teamId: team.codigo_equipo,
+      teamName: team.nombre_equipo,
+      teamShield: team.escudo_club || null,
+      seasonId: team.codigo_temporada || selectedSeason || '22',
+      seasonName: selectedSeason || '2024/2025',
+      gameTypeId: team.codigo_tipo_juego || selectedGameType || '1',
+      gameTypeName: team.codigo_tipo_juego === '2' ? 'Fútbol 7' : 'Fútbol 11',
+      competitionId: team.codigo_competicion || '',
+      competitionName: team.nombre_competicion || 'Competición Oficial',
+      groupId: team.codigo_grupo || '',
+      groupName: team.nombre_grupo || 'Grupo',
+      savedAt: Date.now(),
+    };
+    const { favorites: updatedFavorites } = toggleFavorite(favoriteItem);
+    setFavorites(updatedFavorites);
+  };
+
   // Manejador para abrir el detalle y consultar el acta oficial
   const handleSelectMatch = async (partido: PartidoCalendario) => {
     setSelectedMatchForDetail(partido);
@@ -496,6 +564,8 @@ export function App() {
                   equipo_visitante: 'Visitante',
                 } as any);
               }}
+              favoriteCampoIds={favoriteCampos.map((c) => c.codigoCampo)}
+              onToggleFavoriteCampo={handleToggleFavoriteCampo}
             />
           )}
 
@@ -506,11 +576,15 @@ export function App() {
           {activeTab === 'favoritos' && (
             <FavoritesView
               favorites={favorites}
+              favoriteCampos={favoriteCampos}
               onSelectFavorite={handleSelectFavorite}
               onRemoveFavorite={handleRemoveFavorite}
               onMoveFavorite={handleMoveFavorite}
               onSetPrimaryFavorite={handleSetPrimaryFavorite}
+              onSelectCampo={handleSelectFavoriteCampo}
+              onRemoveFavoriteCampo={handleRemoveFavoriteCampo}
               onGoToMatches={() => setActiveTab('partidos')}
+              onGoToCampos={() => setActiveTab('sedes')}
             />
           )}
 
@@ -541,7 +615,8 @@ export function App() {
               </div>
               <h3 className="text-sm font-bold text-white">Ajustes de la Aplicación</h3>
               <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-                Caché local activa: <span className="text-amber-400 font-semibold">{favorites.length}</span> equipos favoritos guardados en este navegador.
+                Caché local activa: <span className="text-amber-400 font-semibold">{favorites.length}</span> equipos y{' '}
+                <span className="text-emerald-400 font-semibold">{favoriteCampos.length}</span> sedes guardadas en este navegador.
               </p>
             </div>
           )}
@@ -572,6 +647,26 @@ export function App() {
                 equipo_visitante: 'Visitante',
               } as any);
             }}
+            isFavorite={
+              selectedCampoForModal.codigoCampo
+                ? favoriteCampos.some((c) => c.codigoCampo === selectedCampoForModal.codigoCampo)
+                : false
+            }
+            onToggleFavorite={(campoData) => {
+              if (selectedCampoForModal.codigoCampo) {
+                handleToggleFavoriteCampo({
+                  codigo: selectedCampoForModal.codigoCampo,
+                  nombre:
+                    campoData?.nombre_campo ||
+                    selectedCampoForModal.nombreCampoFallback ||
+                    'Instalación Deportiva',
+                  direccion: campoData?.direccion,
+                  localidad: campoData?.localidad,
+                  superficie_juego: campoData?.superficie_juego,
+                  tipo_campo: campoData?.tipo_campo,
+                });
+              }
+            }}
           />
         )}
 
@@ -580,13 +675,15 @@ export function App() {
           isOpen={isSmartSearchOpen}
           onClose={() => setIsSmartSearchOpen(false)}
           onSelectTeam={handleSelectDeduceTeam}
+          favoriteTeamCodes={favorites.map((f) => f.teamId)}
+          onToggleFavorite={handleToggleFavoriteFromDeduce}
         />
 
         {/* Barra de Navegación Inferior Fija */}
         <BottomNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          favoritesCount={favorites.length}
+          favoritesCount={favorites.length + favoriteCampos.length}
         />
       </div>
     </div>

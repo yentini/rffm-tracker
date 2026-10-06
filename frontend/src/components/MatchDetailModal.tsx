@@ -7,6 +7,7 @@ import {
   getGoogleCalendarUrl,
   downloadIcsFile,
 } from '../utils/matchActions';
+import { computeRunningScores } from '../utils/timeline';
 import {
   X,
   Shield,
@@ -134,6 +135,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
     nombreJugador: string;
     codjugador?: string | null;
     icono: 'gol' | 'amarilla' | 'roja' | 'doble_amarilla';
+    marcadorMomento?: string;
   }
 
   const timelineEvents = useMemo<MatchTimelineEvent[]>(() => {
@@ -213,7 +215,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
       });
     });
 
-    return events.sort((a, b) => a.minuto - b.minuto);
+    const sorted = events.sort((a, b) => a.minuto - b.minuto);
+    return computeRunningScores(sorted);
   }, [
     golesLocalList,
     golesVisitanteList,
@@ -499,10 +502,20 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                           }`}
                         />
 
-                        {/* Minuto */}
-                        <span className="w-9 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-white shrink-0 shadow-inner">
-                          {event.minutoRaw}'
-                        </span>
+                        {/* Minuto y Marcador en ese momento */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="w-9 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-white shadow-inner">
+                            {event.minutoRaw}'
+                          </span>
+                          {event.marcadorMomento && (
+                            <span
+                              className="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-mono font-black text-xs shadow-sm"
+                              title={`Marcador tras este gol: ${event.marcadorMomento}`}
+                            >
+                              {event.marcadorMomento}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Icono del evento */}
                         <div className="shrink-0 flex items-center justify-center w-5">
