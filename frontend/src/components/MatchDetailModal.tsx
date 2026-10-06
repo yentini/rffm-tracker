@@ -244,11 +244,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         {/* Cabecera del modal */}
         <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/70 gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 shrink-0">
-              Acta #{partido.codacta}
-            </span>
             {data.nombre_competicion && (
-              <span className="text-xs text-slate-400 truncate max-w-[130px] sm:max-w-[220px]">
+              <span className="text-xs font-semibold text-slate-300 truncate max-w-[180px] sm:max-w-[320px]">
                 {data.nombre_competicion}
               </span>
             )}
