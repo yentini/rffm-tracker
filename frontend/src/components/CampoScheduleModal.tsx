@@ -488,13 +488,13 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                     className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-850/60 transition-all cursor-pointer group"
                   >
                     {/* Fila superior: Hora y Competición */}
-                    <div className="flex items-center justify-between text-[11px] mb-2 pb-2 border-b border-slate-800/60">
-                      <div className="flex items-center gap-1.5 font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                    <div className="flex items-center justify-between text-[11px] mb-2 pb-2 border-b border-slate-800/60 gap-2">
+                      <div className="flex items-center gap-1.5 font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 shrink-0">
                         <Clock className="w-3 h-3" />
                         <span>{formatTime(partido.fecha)}</span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-slate-400 truncate max-w-[240px]">
+                      <div className="flex items-center gap-1.5 text-slate-400 min-w-0 justify-end ml-2">
                         <Trophy className="w-3 h-3 text-slate-500 shrink-0" />
                         <span className="truncate font-medium text-slate-300">
                           {partido.nombre_competicion || 'Competición'}
@@ -502,11 +502,6 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                         {partido.nombre_grupo && (
                           <span className="text-slate-500 text-[10px] shrink-0">
                             • {partido.nombre_grupo}
-                          </span>
-                        )}
-                        {partido.jornada && (
-                          <span className="text-[10px] font-mono text-slate-500 shrink-0">
-                            (J{partido.jornada})
                           </span>
                         )}
                       </div>
@@ -528,7 +523,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                             <Shield className="w-3.5 h-3.5 text-slate-500" />
                           )}
                         </div>
-                        <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors truncate">
+                        <span className="min-w-0 flex-1 text-xs font-bold text-slate-200 group-hover:text-white transition-colors leading-snug line-clamp-2 break-words">
                           {localName}
                         </span>
                       </div>
@@ -550,7 +545,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
 
                       {/* Visitante */}
                       <div className="col-span-5 flex items-center justify-end gap-2 min-w-0 text-right">
-                        <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors truncate">
+                        <span className="min-w-0 flex-1 text-right text-xs font-bold text-slate-200 group-hover:text-white transition-colors leading-snug line-clamp-2 break-words">
                           {visitorName}
                         </span>
                         <div className="w-7 h-7 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center p-1 shrink-0 overflow-hidden">
