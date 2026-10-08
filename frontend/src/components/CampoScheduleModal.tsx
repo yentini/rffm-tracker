@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { CampoDetailResponse } from '../types';
 import { fetchCampoDetail, searchCampos, fetchActaPartido } from '../services/api';
+import { formatDateLabel, formatTime, formatGrupo } from '../utils/campoFormatters';
 import {
   X,
   MapPin,
@@ -199,37 +200,6 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
     });
   }, [campoData, activeDate]);
 
-  // Formatear fecha legible en español (ej. "Sábado, 10 de octubre")
-  const formatDateLabel = (dateStr: string): string => {
-    try {
-      const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const d = new Date(year, month, day);
-        return d.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        });
-      }
-    } catch {
-      // Ignorar fallback
-    }
-    return dateStr;
-  };
-
-  // Extraer hora legible HH:MM
-  const formatTime = (fechaStr?: string | null): string => {
-    if (!fechaStr) return '--:--';
-    const parts = fechaStr.split(' ');
-    if (parts.length > 1) {
-      return parts[1].substring(0, 5);
-    }
-    return fechaStr;
-  };
-
   // Desplazar automáticamente el contenedor horizontal para centrar el día seleccionado
   useEffect(() => {
     if (!isLoading && activeDate && dateScrollContainerRef.current) {
@@ -304,12 +274,12 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
         {/* Cabecera del modal */}
         <div className="p-5 pb-4 border-b border-slate-800/80 bg-slate-950/60 shrink-0">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
               <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 mt-0.5">
                 <MapPin className="w-5 h-5" />
               </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-white tracking-tight truncate">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-white tracking-tight line-clamp-2 leading-snug break-words">
                   {campoData?.nombre_campo || nombreCampoFallback || 'Instalación Deportiva'}
                 </h3>
                 {campoData?.direccion && (
@@ -488,20 +458,20 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                     className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 hover:bg-slate-850/60 transition-all cursor-pointer group"
                   >
                     {/* Fila superior: Hora y Competición */}
-                    <div className="flex items-center justify-between text-[11px] mb-2 pb-2 border-b border-slate-800/60 gap-2">
-                      <div className="flex items-center gap-1.5 font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 shrink-0">
-                        <Clock className="w-3 h-3" />
+                    <div className="flex items-center justify-between text-[10px] mb-2 pb-2 border-b border-slate-800/60 gap-1.5">
+                      <div className="flex items-center gap-1 font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-lg border border-amber-500/20 shrink-0 text-[10px]">
+                        <Clock className="w-2.5 h-2.5" />
                         <span>{formatTime(partido.fecha)}</span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-slate-400 min-w-0 justify-end ml-2">
-                        <Trophy className="w-3 h-3 text-slate-500 shrink-0" />
+                      <div className="flex items-center gap-1 text-slate-400 min-w-0 justify-end ml-1 text-[10px]">
+                        <Trophy className="w-2.5 h-2.5 text-slate-500 shrink-0" />
                         <span className="truncate font-medium text-slate-300">
                           {partido.nombre_competicion || 'Competición'}
                         </span>
                         {partido.nombre_grupo && (
-                          <span className="text-slate-500 text-[10px] shrink-0">
-                            • {partido.nombre_grupo}
+                          <span className="text-slate-400 text-[9.5px] shrink-0 font-normal">
+                            • {formatGrupo(partido.nombre_grupo)}
                           </span>
                         )}
                       </div>
