@@ -228,14 +228,14 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                                 )}
                               </div>
 
-                              <div className="space-y-1 min-w-0 flex-1">
+                              <div className="space-y-1.5 min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                  <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2 break-words leading-snug">
                                     {fav.teamName}
                                   </h4>
 
                                   {isPrimary ? (
-                                    <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+                                    <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.15)] shrink-0">
                                       <Sparkles className="w-2.5 h-2.5 text-amber-400" />
                                       Principal
                                     </span>
@@ -248,7 +248,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                                           onSetPrimaryFavorite(fav.teamId, fav.competitionId, fav.groupId);
                                         }}
                                         title="Situar este equipo en primera posición"
-                                        className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-amber-300 bg-slate-950/80 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-800 hover:border-amber-500/30 transition-all opacity-80 group-hover:opacity-100"
+                                        className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-amber-300 bg-slate-950/80 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-800 hover:border-amber-500/30 transition-all opacity-80 group-hover:opacity-100 shrink-0"
                                       >
                                         <Star className="w-2.5 h-2.5 text-amber-400" />
                                         <span>Hacer principal</span>
@@ -259,13 +259,13 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
                                 {/* Metadatos: Competición y Grupo */}
                                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
-                                  <span className="inline-flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800 truncate max-w-[190px]">
+                                  <span className="inline-flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800">
                                     <Award className="w-3 h-3 text-blue-400 shrink-0" />
-                                    <span className="truncate">{fav.competitionName}</span>
+                                    <span>{fav.competitionName}</span>
                                   </span>
-                                  <span className="inline-flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800 truncate max-w-[130px]">
+                                  <span className="inline-flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800">
                                     <Users2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                                    <span className="truncate">{fav.groupName}</span>
+                                    <span>{fav.groupName}</span>
                                   </span>
                                   {fav.seasonName && (
                                     <span className="inline-flex items-center gap-1 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800">
