@@ -60,8 +60,15 @@ app.add_middleware(
     tags=["Sistema"],
     summary="Verificación de estado de salud",
 )
+@app.get(
+    "/api/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Sistema"],
+    summary="Verificación de estado de salud (ruta API)",
+)
 async def health_check() -> HealthResponse:
-    """Endpoint de comprobación de salud para monitorización en Render."""
+    """Endpoint de comprobación de salud para monitorización en Render y Dokploy."""
     return HealthResponse()
 
 

@@ -33,11 +33,13 @@ dist/
 dist-ssr/
 *.local
 
-# Environment variables
+# Environment variables & secrets
 .env
 .env.local
 .env.*.local
 !.env.example
+backups/*.sql
+backups/.secrets.env
 
 # IDEs & OS
 .vscode/

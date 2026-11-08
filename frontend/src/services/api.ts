@@ -27,7 +27,28 @@ import {
   GoleadoresResponse,
 } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+/**
+ * Resuelve la URL base del backend priorizando VITE_API_URL, el origen actual en producción (Nginx) o localhost.
+ */
+export function resolveApiBaseUrl(
+  envUrl?: string,
+  browserOrigin?: string,
+  isDev: boolean = Boolean(import.meta.env.DEV)
+): string {
+  const trimmedEnv = (envUrl ?? '').trim();
+  if (trimmedEnv) {
+    return trimmedEnv.replace(/\/$/, '');
+  }
+  if (!isDev && browserOrigin && /^https?:\/\//.test(browserOrigin)) {
+    return browserOrigin.replace(/\/$/, '');
+  }
+  return 'http://localhost:8000';
+}
+
+const BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_API_URL,
+  typeof window !== 'undefined' ? window.location.origin : undefined
+);
 
 let cachedRffmBuildId = 'NY30BEAEFulRtBHCLvSa1';
 let buildIdLastFetched = 0;

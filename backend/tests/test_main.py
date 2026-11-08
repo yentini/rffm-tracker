@@ -15,6 +15,7 @@ class TestEndpoints(unittest.TestCase):
     def test_health_check_returns_ok(self):
         # Arrange & Act
         response = self.client.get("/health")
+        api_response = self.client.get("/api/health")
 
         # Assert
         self.assertEqual(response.status_code, 200)
@@ -22,6 +23,8 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(data["status"], "ok")
         self.assertEqual(data["service"], "rfef-tracker-backend")
         self.assertIn("timestamp", data)
+        self.assertEqual(api_response.status_code, 200)
+        self.assertEqual(api_response.json()["status"], "ok")
 
     @patch("app.main.rfef_client.get_seasons", new_callable=AsyncMock)
     def test_get_seasons_returns_list(self, mock_get_seasons):
