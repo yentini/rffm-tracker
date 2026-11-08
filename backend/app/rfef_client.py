@@ -498,6 +498,8 @@ class RFEFClient:
                     )
                 )
 
+            jornadas = await self._fill_round_scores(jornadas, current_round, params)
+
             return CalendarioResponse(
                 temporada=temporada,
                 tipojuego=tipojuego,
@@ -512,6 +514,60 @@ class RFEFClient:
             raise RFEFClientError(
                 f"No se pudo consultar el calendario para temporada={temporada}, grupo={grupo}: {error}"
             ) from error
+
+    async def _fetch_round_scores(
+        self, params: dict[str, str], jornada: int
+    ) -> dict[str, tuple[str, str]]:
+        """Obtiene los marcadores de una jornada desde resultados-y-jornadas de la RFFM.
+
+        Args:
+            params: Filtros base (temporada, tipojuego, competicion, grupo).
+            jornada: Número de jornada a consultar.
+
+        Returns:
+            Diccionario codacta -> (goles_local, goles_visitante) con solo partidos con marcador.
+        """
+        data = await self._get_next_json(
+            "competicion/resultados-y-jornadas.json",
+            params={**params, "jornada": str(jornada)},
+        )
+        partidos = (data.get("pageProps", {}).get("results") or {}).get("partidos") or []
+        scores: dict[str, tuple[str, str]] = {}
+        for p in partidos:
+            local, visitante = p.get("Goles_casa"), p.get("Goles_visitante")
+            if p.get("codacta") and local not in (None, "") and visitante not in (None, ""):
+                scores[str(p["codacta"])] = (str(local), str(visitante))
+        return scores
+
+    async def _fill_round_scores(
+        self, jornadas: list[Jornada], current_round: int, params: dict[str, str]
+    ) -> list[Jornada]:
+        """Completa los goles vacíos de la jornada actual.
+
+        Por qué: calendario.json de la RFFM no refleja los resultados de la jornada en curso
+        hasta días después, mientras que resultados-y-jornadas.json sí los publica al cerrar acta.
+        Es un enriquecimiento opcional: si falla, se registra y se devuelve el calendario original.
+
+        Returns:
+            Nueva lista de jornadas con los marcadores de la jornada actual completados.
+        """
+        target = next((j for j in jornadas if j.numero_jornada == current_round), None)
+        if not target or all(p.goles_local is not None for p in target.partidos):
+            return jornadas
+        try:
+            scores = await self._fetch_round_scores(params, current_round)
+        except Exception as error:
+            logger.warning("No se pudieron completar resultados de jornada %s: %s", current_round, error)
+            return jornadas
+
+        def with_score(partido: PartidoCalendario) -> PartidoCalendario:
+            if partido.goles_local is not None or partido.codacta not in scores:
+                return partido
+            local, visitante = scores[partido.codacta]
+            return partido.model_copy(update={"goles_local": local, "goles_visitante": visitante})
+
+        updated = target.model_copy(update={"partidos": [with_score(p) for p in target.partidos]})
+        return [updated if j is target else j for j in jornadas]
 
     async def get_acta_partido(
         self,

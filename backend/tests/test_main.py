@@ -709,6 +709,70 @@ class TestRFEFClientBuildId(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(data, {"pageProps": {"ok": True}})
             self.assertEqual(mock_http_get.call_count, 2)
 
+    async def test_get_calendario_fills_current_round_scores_from_resultados(self):
+        # Arrange
+        from app.rfef_client import RFEFClient
+        client = RFEFClient()
+        calendar_payload = {"pageProps": {"currentRound": 7, "calendar": {"rounds": [
+            {"codjornada": "6", "equipos": [{"codacta": "A6", "goles_casa": "2", "goles_visitante": "0"}]},
+            {"codjornada": "7", "equipos": [
+                {"codacta": "A7", "goles_casa": "", "goles_visitante": ""},
+                {"codacta": "B7", "goles_casa": "", "goles_visitante": ""},
+            ]},
+        ]}}}
+        resultados_payload = {"pageProps": {"results": {"partidos": [
+            {"codacta": "A7", "Goles_casa": "1", "Goles_visitante": "3"},
+            {"codacta": "B7", "Goles_casa": "", "Goles_visitante": ""},
+        ]}}}
+
+        with patch.object(client, "_get_next_json", new_callable=AsyncMock) as mock_get_next:
+            mock_get_next.side_effect = [calendar_payload, resultados_payload]
+
+            # Act
+            res = await client.get_calendario("22", "1", "26737751", "26737755")
+
+        # Assert
+        current = res.rounds[1].partidos
+        self.assertEqual((current[0].goles_local, current[0].goles_visitante), ("1", "3"))
+        self.assertIsNone(current[1].goles_local)
+        self.assertEqual(res.rounds[0].partidos[0].goles_local, "2")
+        self.assertEqual(mock_get_next.call_args_list[1].kwargs["params"]["jornada"], "7")
+
+    async def test_get_calendario_keeps_data_when_resultados_fails(self):
+        # Arrange
+        from app.rfef_client import RFEFClient
+        client = RFEFClient()
+        calendar_payload = {"pageProps": {"currentRound": 1, "calendar": {"rounds": [
+            {"codjornada": "1", "equipos": [{"codacta": "A1", "goles_casa": "", "goles_visitante": ""}]},
+        ]}}}
+
+        with patch.object(client, "_get_next_json", new_callable=AsyncMock) as mock_get_next:
+            mock_get_next.side_effect = [calendar_payload, Exception("timeout")]
+
+            # Act
+            res = await client.get_calendario("22", "1", "1", "2")
+
+        # Assert
+        self.assertEqual(res.total_jornadas, 1)
+        self.assertIsNone(res.rounds[0].partidos[0].goles_local)
+
+    async def test_get_calendario_skips_resultados_when_round_complete(self):
+        # Arrange
+        from app.rfef_client import RFEFClient
+        client = RFEFClient()
+        calendar_payload = {"pageProps": {"currentRound": 1, "calendar": {"rounds": [
+            {"codjornada": "1", "equipos": [{"codacta": "A1", "goles_casa": "0", "goles_visitante": "0"}]},
+        ]}}}
+
+        with patch.object(client, "_get_next_json", new_callable=AsyncMock) as mock_get_next:
+            mock_get_next.return_value = calendar_payload
+
+            # Act
+            await client.get_calendario("22", "1", "1", "2")
+
+        # Assert
+        self.assertEqual(mock_get_next.call_count, 1)
+
     async def test_rfef_client_get_clasificacion_parses_json(self):
         from app.rfef_client import RFEFClient
         client = RFEFClient()
