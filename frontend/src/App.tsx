@@ -89,8 +89,8 @@ export function App() {
 
   const [calendario, setCalendario] = useState<CalendarioResponse | null>(null);
 
-  // Estado para la pestaña activa en la barra de navegación inferior
-  const [activeTab, setActiveTab] = useState<string>('partidos');
+  // Estado para la pestaña activa en la barra de navegación inferior (por defecto Favoritos al entrar)
+  const [activeTab, setActiveTab] = useState<string>('favoritos');
 
   // Estado para el modal de detalle del acta del partido
   const [selectedMatchForDetail, setSelectedMatchForDetail] = useState<PartidoCalendario | null>(null);
@@ -208,6 +208,7 @@ export function App() {
     setAuthUser(auth.user);
     setIsGuest(false);
     setIsAuthModalOpen(false);
+    setActiveTab('favoritos');
     try {
       const synced = await syncGuestFavoritesToCloud(favorites, favoriteCampos);
       if (synced) {
@@ -234,6 +235,7 @@ export function App() {
     enableGuestMode();
     setIsGuest(true);
     setIsAuthModalOpen(false);
+    setActiveTab('favoritos');
   };
 
   const handleLogout = () => {
