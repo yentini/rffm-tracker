@@ -1,6 +1,7 @@
 """FastAPI router for user authentication and cloud-synced favorites."""
 
-from typing import List, Optional
+import os
+from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -226,6 +227,17 @@ def _replace_user_campos(
         pos += 1
     db.commit()
     db.refresh(user)
+
+
+@router.get(
+    "/api/auth/config",
+    status_code=status.HTTP_200_OK,
+    tags=["Autenticación"],
+    summary="Configuración pública de proveedores de autenticación",
+)
+def get_auth_config() -> Dict[str, str]:
+    """Return public authentication configuration such as GOOGLE_CLIENT_ID."""
+    return {"google_client_id": os.getenv("GOOGLE_CLIENT_ID", "").strip()}
 
 
 @router.post(

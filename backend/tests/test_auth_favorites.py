@@ -48,6 +48,14 @@ class TestAuthAndFavorites(unittest.TestCase):
             "postgresql://u:p@host:5432/db",
         )
 
+    def test_auth_config_returns_google_client_id(self):
+        # Arrange & Act
+        res = self.client.get("/api/auth/config")
+
+        # Assert
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("google_client_id", res.json())
+
     def test_register_and_login_flow(self):
         # Arrange
         reg_payload = {

@@ -100,6 +100,21 @@ async function parseAuthResult(res: Response): Promise<AuthResponse> {
 }
 
 /**
+ * Obtiene la configuración pública de autenticación desde el backend (ej. google_client_id).
+ */
+export async function fetchAuthConfig(): Promise<{ google_client_id: string }> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/auth/config`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return { google_client_id: '' };
+    return (await res.json()) as { google_client_id: string };
+  } catch {
+    return { google_client_id: '' };
+  }
+}
+
+/**
  * Registra una nueva cuenta de usuario con email y contraseña.
  */
 export async function registerUser(

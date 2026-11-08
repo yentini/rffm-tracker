@@ -5,13 +5,17 @@ import {
   LogIn,
   Mail,
   Sparkles,
-  User,
   UserCheck,
   UserPlus,
   X,
 } from 'lucide-react';
 import { AuthResponse } from '../types';
-import { loginUser, loginWithGoogle, registerUser } from '../services/auth';
+import {
+  fetchAuthConfig,
+  loginUser,
+  loginWithGoogle,
+  registerUser,
+} from '../services/auth';
 
 interface AuthScreenProps {
   onSuccess: (auth: AuthResponse) => void;
@@ -33,6 +37,7 @@ declare global {
             parent: HTMLElement,
             options: Record<string, string | number>
           ) => void;
+          prompt: () => void;
         };
       };
     };
@@ -48,12 +53,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [googleClientId, setGoogleClientId] = useState<string>(() =>
+    (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
+  );
 
   const googleBtnRef = useRef<HTMLDivElement | null>(null);
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+
+  useEffect(() => {
+    if (googleClientId) return;
+    fetchAuthConfig().then((cfg) => {
+      if (cfg?.google_client_id) {
+        setGoogleClientId(cfg.google_client_id.trim());
+      }
+    });
+  }, [googleClientId]);
 
   useEffect(() => {
     if (!googleClientId || !googleBtnRef.current) return;
@@ -106,7 +121,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       const auth =
         tab === 'register'
-          ? await registerUser(email, password, name)
+          ? await registerUser(email, password)
           : await loginUser(email, password);
       onSuccess(auth);
     } catch (err: any) {
@@ -114,6 +129,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFallbackGoogleClick = () => {
+    if (googleClientId && window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+      return;
+    }
+    setTab('register');
+    setErrorMsg(
+      'Para el botón directo de Google OAuth añade GOOGLE_CLIENT_ID en Dokploy, o introduce tu correo @gmail.com aquí arriba en Alta Rápida.'
+    );
   };
 
   const cardContent = (
@@ -139,7 +165,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </p>
       </div>
 
-      {/* Selector de pestaña: Iniciar Sesión / Crear Cuenta Rápida */}
+      {/* Selector de pestaña: Iniciar Sesión / Alta Rápida */}
       <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-2xl border border-slate-800 mb-4">
         <button
           type="button"
@@ -179,26 +205,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
       )}
 
-      {/* Formulario Email + Contraseña */}
+      {/* Formulario Email + Contraseña (sin campo nombre) */}
       <form onSubmit={handleSubmit} className="space-y-3">
-        {tab === 'register' && (
-          <div>
-            <label className="block text-[11px] font-medium text-slate-400 mb-1">
-              Nombre o alias (opcional)
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ej. César"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
-              />
-            </div>
-          </div>
-        )}
-
         <div>
           <label className="block text-[11px] font-medium text-slate-400 mb-1">
             Correo electrónico
@@ -210,7 +218,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
+              placeholder="tu@gmail.com"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
             />
           </div>
@@ -243,17 +251,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           {isSubmitting
             ? 'Conectando...'
             : tab === 'register'
-              ? 'Crear cuenta y sincronizar favoritos'
+              ? 'Crear cuenta rápida'
               : 'Entrar a mi cuenta'}
         </button>
       </form>
 
-      {/* Botón Google OAuth (si está configurado VITE_GOOGLE_CLIENT_ID) */}
-      {googleClientId && (
-        <div className="mt-3 flex flex-col items-center">
+      {/* Acceso con Google / Gmail siempre visible */}
+      <div className="mt-3">
+        {googleClientId ? (
           <div ref={googleBtnRef} className="flex justify-center" />
-        </div>
-      )}
+        ) : (
+          <button
+            type="button"
+            onClick={handleFallbackGoogleClick}
+            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.99]"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="#EA4335"
+                d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.2 14.7 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.6 0 9.4-4 9.4-9.6 0-.6-.1-1.1-.2-1.6H12z"
+              />
+            </svg>
+            Continuar con Google / Gmail
+          </button>
+        )}
+      </div>
 
       {/* Separador */}
       <div className="my-4 flex items-center gap-3">
@@ -297,4 +319,3 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     </div>
   );
 };
-
