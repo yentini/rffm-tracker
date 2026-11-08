@@ -1,4 +1,9 @@
 import { FavoriteTeam, FavoriteCampo } from '../types';
+import {
+  getStoredAuthToken,
+  saveCloudFavoriteCampos,
+  saveCloudFavoriteTeams,
+} from './auth';
 
 const FAVORITES_STORAGE_KEY = 'rfef_tracker_favorite_teams';
 const FAVORITE_CAMPOS_STORAGE_KEY = 'rfef_tracker_favorite_campos';
@@ -27,13 +32,23 @@ export function getFavorites(): FavoriteTeam[] {
 }
 
 /**
- * Persiste la lista de favoritos en localStorage de forma segura.
+ * Actualiza únicamente la caché local de equipos favoritos (p. ej. al hidratar desde BD).
  */
-function persistFavorites(favorites: FavoriteTeam[]): void {
+export function setFavoritesCache(favorites: FavoriteTeam[]): void {
   try {
     localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   } catch (error) {
     console.error('Error al guardar favoritos en localStorage:', error);
+  }
+}
+
+/**
+ * Persiste la lista de favoritos en localStorage y en la cuenta del usuario si está autenticado.
+ */
+function persistFavorites(favorites: FavoriteTeam[]): void {
+  setFavoritesCache(favorites);
+  if (getStoredAuthToken()) {
+    void saveCloudFavoriteTeams(favorites);
   }
 }
 
@@ -168,13 +183,35 @@ export function getFavoriteCampos(): FavoriteCampo[] {
 }
 
 /**
- * Persiste la lista de campos favoritos en localStorage.
+ * Actualiza únicamente la caché local de sedes favoritas (p. ej. al hidratar desde BD).
  */
-function persistFavoriteCampos(campos: FavoriteCampo[]): void {
+export function setFavoriteCamposCache(campos: FavoriteCampo[]): void {
   try {
     localStorage.setItem(FAVORITE_CAMPOS_STORAGE_KEY, JSON.stringify(campos));
   } catch (error) {
     console.error('Error al guardar campos favoritos en localStorage:', error);
+  }
+}
+
+/**
+ * Limpia los favoritos locales al cerrar sesión de una cuenta.
+ */
+export function clearLocalFavorites(): void {
+  try {
+    localStorage.removeItem(FAVORITES_STORAGE_KEY);
+    localStorage.removeItem(FAVORITE_CAMPOS_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error al limpiar favoritos locales:', error);
+  }
+}
+
+/**
+ * Persiste la lista de campos favoritos en localStorage y en la cuenta del usuario si está autenticado.
+ */
+function persistFavoriteCampos(campos: FavoriteCampo[]): void {
+  setFavoriteCamposCache(campos);
+  if (getStoredAuthToken()) {
+    void saveCloudFavoriteCampos(campos);
   }
 }
 

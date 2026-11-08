@@ -14,6 +14,7 @@ from backups.restore_dokploy import (
     restore_all,
     setup_backend,
     setup_frontend,
+    setup_postgres,
 )
 
 
@@ -75,12 +76,16 @@ class TestRestoreDokploy(unittest.TestCase):
 
     @patch("backups.restore_dokploy.setup_frontend")
     @patch("backups.restore_dokploy.setup_backend")
+    @patch("backups.restore_dokploy.setup_postgres")
+    @patch("backups.restore_dokploy.cleanup_existing_project")
     @patch("backups.restore_dokploy.call_dokploy_api")
     @patch("backups.restore_dokploy.load_env_file")
     def test_restore_all_creates_project_and_services(
         self,
         mock_load_env: MagicMock,
         mock_api: MagicMock,
+        mock_cleanup: MagicMock,
+        mock_setup_pg: MagicMock,
         mock_setup_back: MagicMock,
         mock_setup_front: MagicMock,
     ):
@@ -90,19 +95,28 @@ class TestRestoreDokploy(unittest.TestCase):
             "DOKPLOY_API_KEY": "api-key-xyz",
         }
         mock_api.return_value = {"environment": {"environmentId": "env-prod-1"}}
+        mock_setup_pg.return_value = "postgresql://rffm_user:pw@rffm-postgres-db:5432/rffm_db"
 
         # Act
         restore_all()
 
         # Assert
+        mock_cleanup.assert_called_once_with(
+            "http://192.168.1.45:3000", "api-key-xyz", "RFFM"
+        )
         mock_api.assert_called_once_with(
             "http://192.168.1.45:3000",
             "api-key-xyz",
             "project.create",
             {"name": "RFFM", "description": "RFEF / RFFM Tracker PWA & API"},
         )
+        mock_setup_pg.assert_called_once()
         mock_setup_back.assert_called_once_with(
-            "http://192.168.1.45:3000", "api-key-xyz", "env-prod-1"
+            "http://192.168.1.45:3000",
+            "api-key-xyz",
+            "env-prod-1",
+            "postgresql://rffm_user:pw@rffm-postgres-db:5432/rffm_db",
+            "rffm-tracker-homelab-jwt-secret-2026",
         )
         mock_setup_front.assert_called_once_with(
             "http://192.168.1.45:3000", "api-key-xyz", "env-prod-1"

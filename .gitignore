@@ -38,6 +38,8 @@ dist-ssr/
 .env.local
 .env.*.local
 !.env.example
+*.db
+*.sqlite3
 backups/*.sql
 backups/.secrets.env
 

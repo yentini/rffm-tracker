@@ -536,3 +536,21 @@ export interface GoleadoresResponse {
   goleadores: GoleadorItem[];
 }
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string | null;
+  auth_provider: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export interface UserFavoritesResponse {
+  teams: FavoriteTeam[];
+  campos: FavoriteCampo[];
+}
+

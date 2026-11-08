@@ -158,7 +158,35 @@ def register_port(base_url: str, api_key: str, app_id: str, published: int, targ
     })
 
 
-def setup_backend(base_url: str, api_key: str, env_id: str) -> str:
+def setup_postgres(
+    base_url: str,
+    api_key: str,
+    env_id: str,
+    db_password: str = "RffmHomelabDb2026Secret",
+) -> str:
+    """Create and deploy a dedicated PostgreSQL 16 Alpine database in Dokploy."""
+    pg = call_dokploy_api(base_url, api_key, "postgres.create", {
+        "name": "rffm-db",
+        "appName": "rffm-postgres-db",
+        "databaseName": "rffm_db",
+        "databaseUser": "rffm_user",
+        "databasePassword": db_password,
+        "dockerImage": "postgres:16-alpine",
+        "environmentId": env_id,
+    })
+    pg_id = pg["postgresId"]
+    pg_app_name = pg.get("appName", "rffm-postgres-db")
+    call_dokploy_api(base_url, api_key, "postgres.deploy", {"postgresId": pg_id})
+    return f"postgresql://rffm_user:{db_password}@{pg_app_name}:5432/rffm_db"
+
+
+def setup_backend(
+    base_url: str,
+    api_key: str,
+    env_id: str,
+    database_url: str = "",
+    jwt_secret: str = "rffm-tracker-homelab-jwt-secret-2026",
+) -> str:
     """Create, configure, and deploy the RFFM FastAPI backend service."""
     back = call_dokploy_api(base_url, api_key, "application.create", {
         "name": "backend",
@@ -171,9 +199,16 @@ def setup_backend(base_url: str, api_key: str, env_id: str) -> str:
         "appName": "rffm-backend-rffmv2-ef66ut",
     })
     configure_dockerfile_service(base_url, api_key, back_id, "/backend")
+    env_lines = [
+        "PORT=8000",
+        "ENVIRONMENT=production",
+        f"JWT_SECRET_KEY={jwt_secret}",
+    ]
+    if database_url:
+        env_lines.append(f"DATABASE_URL={database_url}")
     call_dokploy_api(base_url, api_key, "application.saveEnvironment", {
         "applicationId": back_id,
-        "env": "PORT=8000\nENVIRONMENT=production",
+        "env": "\n".join(env_lines),
         "buildArgs": "",
         "buildSecrets": "",
         "createEnvFile": True,
@@ -227,7 +262,10 @@ def restore_all() -> None:
     })
     project_id = proj.get("project", proj).get("projectId", "unknown")
     env_id = proj["environment"]["environmentId"]
-    back_id = setup_backend(base_url, api_key, env_id)
+    db_password = secrets.get("POSTGRES_PASSWORD", "RffmHomelabDb2026Secret")
+    jwt_secret = secrets.get("JWT_SECRET_KEY", "rffm-tracker-homelab-jwt-secret-2026")
+    db_url = setup_postgres(base_url, api_key, env_id, db_password)
+    back_id = setup_backend(base_url, api_key, env_id, db_url, jwt_secret)
     front_id = setup_frontend(base_url, api_key, env_id)
     logger.info(
         "Full RFFM Homelab deployment triggered! projectId=%s envId=%s backId=%s frontId=%s",

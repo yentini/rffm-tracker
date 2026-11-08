@@ -11,6 +11,15 @@ import { CamposView } from './components/CamposView';
 import { CampoScheduleModal } from './components/CampoScheduleModal';
 import { SmartTeamSearchModal } from './components/SmartTeamSearchModal';
 import { GoleadoresModal } from './components/GoleadoresModal';
+import { AuthScreen } from './components/AuthScreen';
+import {
+  clearAuthSession,
+  enableGuestMode,
+  fetchCloudFavorites,
+  getStoredAuthUser,
+  isGuestModeActive,
+  syncGuestFavoritesToCloud,
+} from './services/auth';
 import {
   fetchActaPartido,
   fetchCalendario,
@@ -31,9 +40,14 @@ import {
   getFavoriteCampos,
   removeFavoriteCampo,
   toggleFavoriteCampo,
+  setFavoritesCache,
+  setFavoriteCamposCache,
+  clearLocalFavorites,
 } from './services/favorites';
 import {
   ActaPartido,
+  AuthResponse,
+  AuthUser,
   CalendarioResponse,
   Competition,
   DeduceTeamResult,
@@ -53,10 +67,15 @@ export function App() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
 
-  // Estado para equipos favoritos almacenados en localStorage
+  // Estado de autenticación (usuario registrado o modo invitado)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredAuthUser());
+  const [isGuest, setIsGuest] = useState<boolean>(() => isGuestModeActive());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Estado para equipos favoritos almacenados en localStorage / cuenta
   const [favorites, setFavorites] = useState<FavoriteTeam[]>(() => getFavorites());
 
-  // Estado para sedes/campos favoritos almacenados en localStorage
+  // Estado para sedes/campos favoritos almacenados en localStorage / cuenta
   const [favoriteCampos, setFavoriteCampos] = useState<FavoriteCampo[]>(() => getFavoriteCampos());
 
   // Al iniciar una nueva sesión, si existen favoritos, preseleccionamos el primer equipo por defecto
@@ -161,6 +180,70 @@ export function App() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Si hay sesión activa al cargar, sincronizar favoritos desde la base de datos
+  useEffect(() => {
+    if (!authUser) return;
+    fetchCloudFavorites()
+      .then((cloudFavs) => {
+        if (!cloudFavs) return;
+        setFavorites(cloudFavs.teams);
+        setFavoriteCampos(cloudFavs.campos);
+        setFavoritesCache(cloudFavs.teams);
+        setFavoriteCamposCache(cloudFavs.campos);
+        if (cloudFavs.teams.length > 0 && !selectedTeam) {
+          const primary = cloudFavs.teams[0];
+          targetGroupRef.current = primary.groupId;
+          setSelectedSeason(primary.seasonId);
+          setSelectedGameType(primary.gameTypeId);
+          setSelectedCompetition(primary.competitionId);
+          setSelectedGroup(primary.groupId);
+          setSelectedTeam(primary.teamId);
+        }
+      })
+      .catch(() => {});
+  }, [authUser]);
+
+  const handleAuthSuccess = async (auth: AuthResponse) => {
+    setAuthUser(auth.user);
+    setIsGuest(false);
+    setIsAuthModalOpen(false);
+    try {
+      const synced = await syncGuestFavoritesToCloud(favorites, favoriteCampos);
+      if (synced) {
+        setFavorites(synced.teams);
+        setFavoriteCampos(synced.campos);
+        setFavoritesCache(synced.teams);
+        setFavoriteCamposCache(synced.campos);
+        if (synced.teams.length > 0) {
+          const primary = synced.teams[0];
+          targetGroupRef.current = primary.groupId;
+          setSelectedSeason(primary.seasonId);
+          setSelectedGameType(primary.gameTypeId);
+          setSelectedCompetition(primary.competitionId);
+          setSelectedGroup(primary.groupId);
+          setSelectedTeam(primary.teamId);
+        }
+      }
+    } catch {
+      // Continuar con estado local si falla red puntualmente
+    }
+  };
+
+  const handleContinueAsGuest = () => {
+    enableGuestMode();
+    setIsGuest(true);
+    setIsAuthModalOpen(false);
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    clearLocalFavorites();
+    setAuthUser(null);
+    setIsGuest(false);
+    setFavorites([]);
+    setFavoriteCampos([]);
+  };
 
   // Carga reactiva de competiciones
   useEffect(() => {
@@ -487,13 +570,37 @@ export function App() {
     }
   };
 
+  if (!authUser && !isGuest) {
+    return (
+      <AuthScreen
+        onSuccess={handleAuthSuccess}
+        onContinueAsGuest={handleContinueAsGuest}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center">
       {/* Contenedor central con formato móvil responsive y mejor aprovechamiento del ancho */}
       <div className="w-full max-w-xl min-h-screen flex flex-col relative pb-24">
         
         {/* Cabecera Fija */}
-        <Header onRefresh={loadInitialData} isLoading={isLoading} />
+        <Header
+          onRefresh={loadInitialData}
+          isLoading={isLoading}
+          user={authUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+        />
+
+        {isAuthModalOpen && (
+          <AuthScreen
+            isModal
+            onCloseModal={() => setIsAuthModalOpen(false)}
+            onSuccess={handleAuthSuccess}
+            onContinueAsGuest={handleContinueAsGuest}
+          />
+        )}
 
         {/* Contenido principal con safe area */}
         <main className="pt-20 sm:pt-24 px-2.5 sm:px-4 flex-1 space-y-4 sm:space-y-5">

@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth_routes import router as auth_router
+from app.database import init_db
 from app.rfef_client import RFEFClient, RFEFClientError
 from app.schemas import (
     ActaResponse,
@@ -28,11 +30,13 @@ from app.schemas import (
 )
 
 rfef_client = RFEFClient()
+init_db()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Ciclo de vida de la aplicación."""
+    init_db()
     yield
 
 
@@ -51,6 +55,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 
 @app.get(
