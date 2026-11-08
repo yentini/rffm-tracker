@@ -54,6 +54,7 @@ class TestRestoreDokploy(unittest.TestCase):
             {},
             {},
             {},
+            {},
             {"applicationId": "front-456"},
             {},
             {},
@@ -70,7 +71,7 @@ class TestRestoreDokploy(unittest.TestCase):
         # Assert
         self.assertEqual(back_id, "back-123")
         self.assertEqual(front_id, "front-456")
-        self.assertEqual(mock_api.call_count, 15)
+        self.assertEqual(mock_api.call_count, 16)
 
     @patch("backups.restore_dokploy.setup_frontend")
     @patch("backups.restore_dokploy.setup_backend")

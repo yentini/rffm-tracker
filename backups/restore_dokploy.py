@@ -82,20 +82,46 @@ def call_dokploy_api(
         raise RuntimeError(f"Dokploy API call failed: {endpoint}") from exc
 
 
+def get_dokploy_api(base_url: str, api_key: str, endpoint: str) -> Any:
+    """Execute a GET request against the Dokploy REST API."""
+    url = f"{base_url.rstrip('/')}/api/{endpoint}"
+    req = urllib.request.Request(
+        url,
+        headers={"x-api-key": api_key, "Accept": "application/json"},
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def configure_dockerfile_service(
     base_url: str,
     api_key: str,
     app_id: str,
     subpath: str,
 ) -> None:
-    """Configure an application to build from the Git repo using Dockerfile."""
-    call_dokploy_api(base_url, api_key, "application.saveGitProvider", {
-        "applicationId": app_id,
-        "customGitUrl": REPO_URL,
-        "customGitBranch": "main",
-        "customGitBuildPath": subpath,
-        "enableSubmodules": False,
-    })
+    """Configure an application to build from GitHub using Dockerfile."""
+    try:
+        call_dokploy_api(base_url, api_key, "application.saveGithubProvider", {
+            "applicationId": app_id,
+            "owner": "yentini",
+            "repository": "rffm-tracker",
+            "branch": "main",
+            "buildPath": subpath,
+            "githubId": "A6B4uonQgjXermsJI14ts",
+            "watchPaths": [],
+            "enableSubmodules": False,
+            "triggerType": "push",
+        })
+    except Exception:
+        call_dokploy_api(base_url, api_key, "application.saveGitProvider", {
+            "applicationId": app_id,
+            "customGitUrl": REPO_URL,
+            "customGitBranch": "main",
+            "customGitBuildPath": subpath,
+            "enableSubmodules": False,
+            "watchPaths": [],
+        })
     call_dokploy_api(base_url, api_key, "application.saveBuildType", {
         "applicationId": app_id,
         "buildType": "dockerfile",
@@ -136,14 +162,20 @@ def setup_backend(base_url: str, api_key: str, env_id: str) -> str:
     """Create, configure, and deploy the RFFM FastAPI backend service."""
     back = call_dokploy_api(base_url, api_key, "application.create", {
         "name": "backend",
-        "appName": "rffm-backend-rffmv2",
+        "appName": "rffm-backend-rffmv2-ef66ut",
         "environmentId": env_id,
     })
     back_id = back["applicationId"]
+    call_dokploy_api(base_url, api_key, "application.update", {
+        "applicationId": back_id,
+        "appName": "rffm-backend-rffmv2-ef66ut",
+    })
     configure_dockerfile_service(base_url, api_key, back_id, "/backend")
     call_dokploy_api(base_url, api_key, "application.saveEnvironment", {
         "applicationId": back_id,
         "env": "PORT=8000\nENVIRONMENT=production",
+        "buildArgs": "",
+        "buildSecrets": "",
         "createEnvFile": True,
     })
     register_domain(base_url, api_key, back_id, "rffm-api.cabrerizolab.net", 8000)
@@ -169,20 +201,41 @@ def setup_frontend(base_url: str, api_key: str, env_id: str) -> str:
     return front_id
 
 
+def cleanup_existing_project(base_url: str, api_key: str, project_name: str) -> None:
+    """Remove any existing project with the same name before a clean provision."""
+    try:
+        projects = get_dokploy_api(base_url, api_key, "project.all")
+        for proj in projects:
+            if proj.get("name") == project_name:
+                pid = proj["projectId"]
+                logger.info("Removing existing partial project %s (%s)...", project_name, pid)
+                call_dokploy_api(base_url, api_key, "project.remove", {"projectId": pid})
+    except Exception as exc:
+        logger.warning("Could not inspect existing projects: %s", exc)
+
+
 def restore_all() -> None:
     """Orchestrate full provisioning/restoration of Project RFFM on Dokploy."""
     secrets = load_env_file(SECRETS_ENV_PATH)
     base_url = secrets["DOKPLOY_URL"]
     api_key = secrets["DOKPLOY_API_KEY"]
 
+    cleanup_existing_project(base_url, api_key, "RFFM")
     proj = call_dokploy_api(base_url, api_key, "project.create", {
         "name": "RFFM",
         "description": "RFEF / RFFM Tracker PWA & API",
     })
+    project_id = proj.get("project", proj).get("projectId", "unknown")
     env_id = proj["environment"]["environmentId"]
-    setup_backend(base_url, api_key, env_id)
-    setup_frontend(base_url, api_key, env_id)
-    logger.info("Full RFFM Homelab deployment triggered successfully!")
+    back_id = setup_backend(base_url, api_key, env_id)
+    front_id = setup_frontend(base_url, api_key, env_id)
+    logger.info(
+        "Full RFFM Homelab deployment triggered! projectId=%s envId=%s backId=%s frontId=%s",
+        project_id,
+        env_id,
+        back_id,
+        front_id,
+    )
 
 
 if __name__ == "__main__":
