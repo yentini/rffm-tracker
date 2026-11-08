@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   favoritesCount = 0,
 }) => {
   const tabs = [
-    { id: 'partidos', label: 'Partidos', icon: Calendar },
+    { id: 'partidos', label: 'Equipos', icon: Calendar },
     { id: 'clasificacion', label: 'Tablas', icon: Trophy },
     { id: 'sedes', label: 'Sedes', icon: MapPin },
     { id: 'favoritos', label: 'Favoritos', icon: Star, badge: favoritesCount > 0 ? favoritesCount : null },

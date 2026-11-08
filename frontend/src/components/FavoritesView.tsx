@@ -103,8 +103,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
           type="button"
           onClick={() => setActiveSubTab('agenda')}
           className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeSubTab === 'agenda'
-              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
             }`}
         >
           <Calendar className="w-4 h-4" />
@@ -114,8 +114,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
           type="button"
           onClick={() => setActiveSubTab('gestion')}
           className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeSubTab === 'gestion'
-              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-950/50'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
             }`}
         >
           <Star className="w-4 h-4" />
@@ -173,11 +173,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
             {/* Contenido desplegable de Equipos */}
             {isEquiposOpen && (
-              <div className="p-5 pt-0 border-t border-slate-800/80 animate-in fade-in duration-200">
-                <p className="text-xs text-slate-400 py-3">
-                  El <span className="text-amber-400 font-semibold">1º equipo</span> se carga automáticamente al abrir la aplicación.
-                </p>
-
+              <div className="p-5 pt-3 border-t border-slate-800/80 animate-in fade-in duration-200">
                 {favorites.length === 0 ? (
                   <div className="text-center py-8 px-4 space-y-3 bg-slate-950/40 rounded-2xl border border-slate-800">
                     <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500 shadow-inner">
@@ -209,8 +205,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                         <div
                           key={key}
                           className={`py-3 first:pt-2 last:pb-1 group rounded-2xl p-2.5 transition-all ${isPrimary
-                              ? 'bg-amber-500/[0.04] border border-amber-500/20 shadow-sm'
-                              : 'hover:bg-slate-850/40'
+                            ? 'bg-amber-500/[0.04] border border-amber-500/20 shadow-sm'
+                            : 'hover:bg-slate-850/40'
                             }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -251,7 +247,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                                           e.stopPropagation();
                                           onSetPrimaryFavorite(fav.teamId, fav.competitionId, fav.groupId);
                                         }}
-                                        title="Fijar este equipo como el que se carga al abrir la app"
+                                        title="Situar este equipo en primera posición"
                                         className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-amber-300 bg-slate-950/80 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-800 hover:border-amber-500/30 transition-all opacity-80 group-hover:opacity-100"
                                       >
                                         <Star className="w-2.5 h-2.5 text-amber-400" />

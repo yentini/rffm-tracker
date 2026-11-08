@@ -59,7 +59,7 @@ import {
   PartidoCalendario,
   Season,
 } from './types';
-import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy, Flame } from 'lucide-react';
+import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy, Flame, ArrowLeft } from 'lucide-react';
 
 export function App() {
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -91,6 +91,8 @@ export function App() {
 
   // Estado para la pestaña activa en la barra de navegación inferior (por defecto Favoritos al entrar)
   const [activeTab, setActiveTab] = useState<string>('favoritos');
+  // Si el usuario entra a ver un equipo pulsando desde Favoritos, ocultamos los filtros de competición
+  const [isViewingFromFavorite, setIsViewingFromFavorite] = useState<boolean>(false);
 
   // Estado para el modal de detalle del acta del partido
   const [selectedMatchForDetail, setSelectedMatchForDetail] = useState<PartidoCalendario | null>(null);
@@ -125,6 +127,7 @@ export function App() {
     if (deduced.codigo_competicion) setSelectedCompetition(deduced.codigo_competicion);
     if (deduced.codigo_grupo) setSelectedGroup(deduced.codigo_grupo);
     setSelectedTeam(deduced.codigo_equipo);
+    setIsViewingFromFavorite(false);
     setActiveTab('partidos');
 
     // Si por alguna razón el grupo vino vacío, resolverlo dinámicamente mediante la ficha del equipo
@@ -479,13 +482,15 @@ export function App() {
     setFavorites(updated);
   };
 
-  // Seleccionar favorito para cargar directamente toda su información
+  // Seleccionar favorito para cargar directamente su calendario sin los filtros de temporada/modalidad
   const handleSelectFavorite = (fav: FavoriteTeam) => {
+    targetGroupRef.current = fav.groupId;
     setSelectedSeason(fav.seasonId);
     setSelectedGameType(fav.gameTypeId);
     setSelectedCompetition(fav.competitionId);
     setSelectedGroup(fav.groupId);
     setSelectedTeam(fav.teamId);
+    setIsViewingFromFavorite(true);
     setActiveTab('partidos');
   };
 
@@ -617,30 +622,51 @@ export function App() {
 
           {activeTab === 'partidos' && (
             <>
-              {/* Sección 1: Los 5 Selectores encadenados (incluyendo Equipo opcional con Favorito) */}
-              <CompetitionSelector
-                seasons={seasons}
-                gameTypes={gameTypes}
-                competitions={competitions}
-                groups={groups}
-                teams={teams}
-                selectedSeason={selectedSeason}
-                selectedGameType={selectedGameType}
-                selectedCompetition={selectedCompetition}
-                selectedGroup={selectedGroup}
-                selectedTeam={selectedTeam}
-                onSeasonChange={handleSeasonChange}
-                onGameTypeChange={handleGameTypeChange}
-                onCompetitionChange={handleCompetitionChange}
-                onGroupChange={handleGroupChange}
-                onTeamChange={setSelectedTeam}
-                isLoading={isLoading}
-                isLoadingCompetitions={isLoadingCompetitions}
-                isLoadingGroups={isLoadingGroups}
-                isCurrentFavorite={isCurrentFavorite}
-                onToggleFavorite={handleToggleFavorite}
-                onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
-              />
+              {/* Si venimos desde Favoritos, ocultamos los selectores de Temporada/Modalidad y mostramos acceso directo */}
+              {isViewingFromFavorite ? (
+                <div className="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 rounded-2xl px-3.5 py-2.5 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('favoritos')}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-amber-400" />
+                    <span>Volver a Favoritos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsViewingFromFavorite(false)}
+                    className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Buscar otro equipo
+                  </button>
+                </div>
+              ) : (
+                /* Sección 1: Los 5 Selectores encadenados y Búsqueda Rápida de Equipo */
+                <CompetitionSelector
+                  seasons={seasons}
+                  gameTypes={gameTypes}
+                  competitions={competitions}
+                  groups={groups}
+                  teams={teams}
+                  selectedSeason={selectedSeason}
+                  selectedGameType={selectedGameType}
+                  selectedCompetition={selectedCompetition}
+                  selectedGroup={selectedGroup}
+                  selectedTeam={selectedTeam}
+                  onSeasonChange={handleSeasonChange}
+                  onGameTypeChange={handleGameTypeChange}
+                  onCompetitionChange={handleCompetitionChange}
+                  onGroupChange={handleGroupChange}
+                  onTeamChange={setSelectedTeam}
+                  isLoading={isLoading}
+                  isLoadingCompetitions={isLoadingCompetitions}
+                  isLoadingGroups={isLoadingGroups}
+                  isCurrentFavorite={isCurrentFavorite}
+                  onToggleFavorite={handleToggleFavorite}
+                  onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
+                />
+              )}
 
               {/* Sección 2: Calendario (Horizontal por Jornadas o Vertical por Equipo) */}
               <div className="space-y-2.5 sm:space-y-3 pt-1">
@@ -649,7 +675,9 @@ export function App() {
                     <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
                       {selectedTeam
-                        ? (teams.find((t) => t.codigo === selectedTeam)?.nombre || 'Partidos del Equipo')
+                        ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
+                           favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
+                           'Partidos del Equipo')
                         : 'Calendario Oficial'}
                     </h3>
                   </div>
@@ -741,7 +769,10 @@ export function App() {
               onSetPrimaryFavorite={handleSetPrimaryFavorite}
               onSelectCampo={handleSelectFavoriteCampo}
               onRemoveFavoriteCampo={handleRemoveFavoriteCampo}
-              onGoToMatches={() => setActiveTab('partidos')}
+              onGoToMatches={() => {
+                setIsViewingFromFavorite(false);
+                setActiveTab('partidos');
+              }}
               onGoToCampos={() => setActiveTab('sedes')}
               onSelectMatch={handleSelectMatch}
               onSelectCampoModal={(codigoCampo, nombreCampoFallback) =>
@@ -860,7 +891,12 @@ export function App() {
         {/* Barra de Navegación Inferior Fija */}
         <BottomNav
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            if (tab === 'partidos') {
+              setIsViewingFromFavorite(false);
+            }
+            setActiveTab(tab);
+          }}
           favoritesCount={favorites.length + favoriteCampos.length}
         />
       </div>
