@@ -296,7 +296,9 @@ export const CompetitionSelector: React.FC<CompetitionSelectorProps> = ({
                         : 'border-slate-700/80 focus:ring-rose-500/50 focus:border-rose-500'
                     }`}
                   >
-                    <option value="">Todos los equipos (ver jornadas)</option>
+                    <option value="">
+                      {!selectedGroup ? 'Selecciona primero un grupo' : 'Todos los equipos (ver jornadas)'}
+                    </option>
                     {teams.map((team) => (
                       <option key={team.codigo} value={team.codigo} className="bg-slate-900 text-white">
                         {team.nombre}

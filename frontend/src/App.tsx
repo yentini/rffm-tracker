@@ -78,14 +78,12 @@ export function App() {
   // Estado para sedes/campos favoritos almacenados en localStorage / cuenta
   const [favoriteCampos, setFavoriteCampos] = useState<FavoriteCampo[]>(() => getFavoriteCampos());
 
-  // Al iniciar una nueva sesión, si existen favoritos, preseleccionamos el primer equipo por defecto
-  const initialFavorite = favorites.length > 0 ? favorites[0] : null;
-
-  const [selectedSeason, setSelectedSeason] = useState<string>(() => initialFavorite?.seasonId || '');
-  const [selectedGameType, setSelectedGameType] = useState<string>(() => initialFavorite?.gameTypeId || '');
-  const [selectedCompetition, setSelectedCompetition] = useState<string>(() => initialFavorite?.competitionId || '');
-  const [selectedGroup, setSelectedGroup] = useState<string>(() => initialFavorite?.groupId || '');
-  const [selectedTeam, setSelectedTeam] = useState<string>(() => initialFavorite?.teamId || '');
+  // Por defecto al ir a la pantalla Equipos solo se preseleccionan Temporada actual y Modalidad Fútbol 11; el resto vacío
+  const [selectedSeason, setSelectedSeason] = useState<string>('22');
+  const [selectedGameType, setSelectedGameType] = useState<string>('1');
+  const [selectedCompetition, setSelectedCompetition] = useState<string>('');
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [selectedTeam, setSelectedTeam] = useState<string>('');
 
   const [calendario, setCalendario] = useState<CalendarioResponse | null>(null);
 
@@ -167,10 +165,14 @@ export function App() {
       setGameTypes(gameTypesData);
 
       const defaultSeason = seasonsData.length > 0 ? seasonsData[0].cod_temporada : '22';
-      const defaultGameType = gameTypesData.length > 0 ? gameTypesData[0].codigo_tipo_juego : '1';
+      const futbol11 =
+        gameTypesData.find(
+          (gt) => gt.codigo_tipo_juego === '1' || gt.nombre.toLowerCase().includes('11')
+        )?.codigo_tipo_juego ||
+        (gameTypesData.length > 0 ? gameTypesData[0].codigo_tipo_juego : '1');
 
       setSelectedSeason((prev) => prev || defaultSeason);
-      setSelectedGameType((prev) => prev || defaultGameType);
+      setSelectedGameType((prev) => prev || futbol11);
 
       setIsOfflineWarning(false);
     } catch {
@@ -194,15 +196,6 @@ export function App() {
         setFavoriteCampos(cloudFavs.campos);
         setFavoritesCache(cloudFavs.teams);
         setFavoriteCamposCache(cloudFavs.campos);
-        if (cloudFavs.teams.length > 0 && !selectedTeam) {
-          const primary = cloudFavs.teams[0];
-          targetGroupRef.current = primary.groupId;
-          setSelectedSeason(primary.seasonId);
-          setSelectedGameType(primary.gameTypeId);
-          setSelectedCompetition(primary.competitionId);
-          setSelectedGroup(primary.groupId);
-          setSelectedTeam(primary.teamId);
-        }
       })
       .catch(() => {});
   }, [authUser]);
@@ -219,15 +212,6 @@ export function App() {
         setFavoriteCampos(synced.campos);
         setFavoritesCache(synced.teams);
         setFavoriteCamposCache(synced.campos);
-        if (synced.teams.length > 0) {
-          const primary = synced.teams[0];
-          targetGroupRef.current = primary.groupId;
-          setSelectedSeason(primary.seasonId);
-          setSelectedGameType(primary.gameTypeId);
-          setSelectedCompetition(primary.competitionId);
-          setSelectedGroup(primary.groupId);
-          setSelectedTeam(primary.teamId);
-        }
       }
     } catch {
       // Continuar con estado local si falla red puntualmente
@@ -264,7 +248,7 @@ export function App() {
           setCompetitions(comps);
           setSelectedCompetition((prev) => {
             if (prev && comps.some((c) => c.codigo === prev)) return prev;
-            return comps.length > 0 ? comps[0].codigo : '';
+            return '';
           });
         }
       } catch (error) {
@@ -306,7 +290,7 @@ export function App() {
               return target;
             }
             if (prev && grps.some((g) => g.codigo === prev)) return prev;
-            return grps.length > 0 ? grps[0].codigo : '';
+            return '';
           });
         }
       } catch (error) {
@@ -482,6 +466,22 @@ export function App() {
     setFavorites(updated);
   };
 
+  // Restablecer filtros de Equipos por defecto: Temporada actual y Fútbol 11, el resto vacío
+  const resetToDefaultEquiposFilters = () => {
+    const defaultSeason = seasons.length > 0 ? seasons[0].cod_temporada : '22';
+    const futbol11 =
+      gameTypes.find(
+        (gt) => gt.codigo_tipo_juego === '1' || gt.nombre.toLowerCase().includes('11')
+      )?.codigo_tipo_juego || '1';
+    targetGroupRef.current = null;
+    setSelectedSeason(defaultSeason);
+    setSelectedGameType(futbol11);
+    setSelectedCompetition('');
+    setSelectedGroup('');
+    setSelectedTeam('');
+    setIsViewingFromFavorite(false);
+  };
+
   // Seleccionar favorito para cargar directamente su calendario sin los filtros de temporada/modalidad
   const handleSelectFavorite = (fav: FavoriteTeam) => {
     targetGroupRef.current = fav.groupId;
@@ -635,7 +635,7 @@ export function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsViewingFromFavorite(false)}
+                    onClick={resetToDefaultEquiposFilters}
                     className="text-[11px] font-medium text-red-400 hover:text-red-300 transition-colors"
                   >
                     Buscar otro equipo
@@ -668,76 +668,80 @@ export function App() {
                 />
               )}
 
-              {/* Sección 2: Calendario (Horizontal por Jornadas o Vertical por Equipo) */}
-              <div className="space-y-2.5 sm:space-y-3 pt-1">
-                <div className="flex items-center justify-between px-1 gap-2">
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
-                      {selectedTeam
-                        ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
-                           favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
-                           'Partidos del Equipo')
-                        : 'Calendario Oficial'}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    {selectedGroup && (
+              {/* Sección 2: Calendario (solo se muestra cuando ya hay un grupo o equipo seleccionado) */}
+              {(selectedGroup || isViewingFromFavorite) && (
+                <>
+                  <div className="space-y-2.5 sm:space-y-3 pt-1">
+                    <div className="flex items-center justify-between px-1 gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                        <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
+                          {selectedTeam
+                            ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
+                               favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
+                               'Partidos del Equipo')
+                            : 'Calendario Oficial'}
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                        {selectedGroup && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('clasificacion')}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                            title="Ver clasificación oficial de este grupo"
+                          >
+                            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Clasificación</span>
+                          </button>
+                        )}
+                        {calendario && (
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
+                            {selectedTeam ? `${teamMatchesCount} Partidos` : `${calendario.total_jornadas} Jornadas`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acceso rápido a Goleadores del Grupo */}
+                    {selectedCompetition && selectedGroup && (
                       <button
                         type="button"
-                        onClick={() => setActiveTab('clasificacion')}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
-                        title="Ver clasificación oficial de este grupo"
+                        onClick={() => setIsGoleadoresModalOpen(true)}
+                        className="w-full py-2.5 px-4 bg-slate-900/90 hover:bg-slate-850 active:scale-98 border border-slate-800 hover:border-amber-500/40 rounded-2xl text-xs font-bold text-amber-400 hover:text-amber-300 transition-all flex items-center justify-center gap-2 shadow-lg group"
                       >
-                        <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Clasificación</span>
+                        <Flame className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                        <span>Ver Máximos Goleadores del Grupo</span>
                       </button>
                     )}
-                    {calendario && (
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-                        {selectedTeam ? `${teamMatchesCount} Partidos` : `${calendario.total_jornadas} Jornadas`}
-                      </span>
-                    )}
+
+                    <CalendarSlider
+                      calendario={calendario}
+                      isLoading={isLoadingCalendario}
+                      selectedTeam={selectedTeam}
+                      onClearTeam={() => setSelectedTeam('')}
+                      onSelectMatch={handleSelectMatch}
+                      onSelectCampo={(codigoCampo, nombreCampo, fecha) =>
+                        setSelectedCampoForModal({
+                          codigoCampo,
+                          nombreCampoFallback: nombreCampo,
+                          selectedDateFilter: fecha,
+                        })
+                      }
+                    />
                   </div>
-                </div>
 
-                {/* Acceso rápido a Goleadores del Grupo */}
-                {selectedCompetition && selectedGroup && (
+                  {/* Botón de recarga manual de API */}
                   <button
-                    type="button"
-                    onClick={() => setIsGoleadoresModalOpen(true)}
-                    className="w-full py-2.5 px-4 bg-slate-900/90 hover:bg-slate-850 active:scale-98 border border-slate-800 hover:border-amber-500/40 rounded-2xl text-xs font-bold text-amber-400 hover:text-amber-300 transition-all flex items-center justify-center gap-2 shadow-lg group"
+                    onClick={loadInitialData}
+                    disabled={isLoading || isLoadingCalendario}
+                    className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-850 active:scale-98 border border-slate-800 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg"
                   >
-                    <Flame className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                    <span>Ver Máximos Goleadores del Grupo</span>
+                    <RefreshCcw className={`w-3.5 h-3.5 ${isLoading || isLoadingCalendario ? 'animate-spin text-red-500' : ''}`} />
+                    <span>Refrescar Calendario Completo</span>
                   </button>
-                )}
-
-                <CalendarSlider
-                  calendario={calendario}
-                  isLoading={isLoadingCalendario}
-                  selectedTeam={selectedTeam}
-                  onClearTeam={() => setSelectedTeam('')}
-                  onSelectMatch={handleSelectMatch}
-                  onSelectCampo={(codigoCampo, nombreCampo, fecha) =>
-                    setSelectedCampoForModal({
-                      codigoCampo,
-                      nombreCampoFallback: nombreCampo,
-                      selectedDateFilter: fecha,
-                    })
-                  }
-                />
-              </div>
-
-              {/* Botón de recarga manual de API */}
-              <button
-                onClick={loadInitialData}
-                disabled={isLoading || isLoadingCalendario}
-                className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-850 active:scale-98 border border-slate-800 rounded-2xl text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-2 shadow-lg"
-              >
-                <RefreshCcw className={`w-3.5 h-3.5 ${isLoading || isLoadingCalendario ? 'animate-spin text-red-500' : ''}`} />
-                <span>Refrescar Calendario Completo</span>
-              </button>
+                </>
+              )}
             </>
           )}
 
@@ -770,7 +774,7 @@ export function App() {
               onSelectCampo={handleSelectFavoriteCampo}
               onRemoveFavoriteCampo={handleRemoveFavoriteCampo}
               onGoToMatches={() => {
-                setIsViewingFromFavorite(false);
+                resetToDefaultEquiposFilters();
                 setActiveTab('partidos');
               }}
               onGoToCampos={() => setActiveTab('sedes')}
@@ -893,7 +897,7 @@ export function App() {
           activeTab={activeTab}
           onTabChange={(tab) => {
             if (tab === 'partidos') {
-              setIsViewingFromFavorite(false);
+              resetToDefaultEquiposFilters();
             }
             setActiveTab(tab);
           }}
