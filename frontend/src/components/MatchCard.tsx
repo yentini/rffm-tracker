@@ -90,11 +90,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({ partido }) => {
         <div className="col-span-2 flex flex-col items-center justify-center">
           {hasScore ? (
             <div className="flex items-center gap-1.5 text-lg font-black tracking-tight text-white bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
-              <span className={partido.goles_local! > partido.goles_visitante! ? 'text-red-400' : 'text-slate-200'}>
+              <span className={partido.goles_local! > partido.goles_visitante! ? 'text-emerald-400' : 'text-slate-200'}>
                 {partido.goles_local}
               </span>
               <span className="text-slate-600 font-light">:</span>
-              <span className={partido.goles_visitante! > partido.goles_local! ? 'text-red-400' : 'text-slate-200'}>
+              <span className={partido.goles_visitante! > partido.goles_local! ? 'text-emerald-400' : 'text-slate-200'}>
                 {partido.goles_visitante}
               </span>
             </div>

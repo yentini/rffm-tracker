@@ -383,9 +383,13 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
                   <div className="col-span-1 flex flex-col items-center justify-center">
                     {hasScore ? (
                       <div className="flex items-center gap-1 font-mono font-black text-lg text-white">
-                        <span>{m.golesLocal}</span>
+                        <span className={Number(m.golesLocal) > Number(m.golesVisitante) ? 'text-emerald-400' : 'text-slate-200'}>
+                          {m.golesLocal}
+                        </span>
                         <span className="text-slate-600">-</span>
-                        <span>{m.golesVisitante}</span>
+                        <span className={Number(m.golesVisitante) > Number(m.golesLocal) ? 'text-emerald-400' : 'text-slate-200'}>
+                          {m.golesVisitante}
+                        </span>
                       </div>
                     ) : (
                       <span className="text-xs font-black text-slate-500">VS</span>

@@ -270,11 +270,11 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                   <div className="col-span-2 flex flex-col items-center justify-center">
                     {hasScore ? (
                       <div className="flex items-center gap-1 sm:gap-1.5 text-base sm:text-xl font-black tracking-tight text-white bg-slate-950 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-800 shadow-inner">
-                        <span className={Number(partido.goles_local) > Number(partido.goles_visitante) ? 'text-red-400' : 'text-slate-200'}>
+                        <span className={Number(partido.goles_local) > Number(partido.goles_visitante) ? 'text-emerald-400' : 'text-slate-200'}>
                           {partido.goles_local}
                         </span>
                         <span className="text-slate-600 font-light">:</span>
-                        <span className={Number(partido.goles_visitante) > Number(partido.goles_local) ? 'text-red-400' : 'text-slate-200'}>
+                        <span className={Number(partido.goles_visitante) > Number(partido.goles_local) ? 'text-emerald-400' : 'text-slate-200'}>
                           {partido.goles_visitante}
                         </span>
                       </div>
@@ -590,11 +590,11 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                   <div className="col-span-2 flex flex-col items-center justify-center">
                     {hasScore ? (
                       <div className="flex items-center gap-1 sm:gap-1.5 text-base sm:text-lg font-black tracking-tight text-white bg-slate-950 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-800 shadow-inner">
-                        <span className={Number(partido.goles_local) > Number(partido.goles_visitante) ? 'text-red-400' : 'text-slate-200'}>
+                        <span className={Number(partido.goles_local) > Number(partido.goles_visitante) ? 'text-emerald-400' : 'text-slate-200'}>
                           {partido.goles_local}
                         </span>
                         <span className="text-slate-600 font-light">:</span>
-                        <span className={Number(partido.goles_visitante) > Number(partido.goles_local) ? 'text-red-400' : 'text-slate-200'}>
+                        <span className={Number(partido.goles_visitante) > Number(partido.goles_local) ? 'text-emerald-400' : 'text-slate-200'}>
                           {partido.goles_visitante}
                         </span>
                       </div>

@@ -525,9 +525,13 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                       <div className="col-span-2 flex justify-center">
                         {hasScore ? (
                           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg text-xs font-extrabold text-white">
-                            <span>{golesCasa}</span>
+                            <span className={Number(golesCasa) > Number(golesFuera) ? 'text-emerald-400' : 'text-slate-200'}>
+                              {golesCasa}
+                            </span>
                             <span className="text-slate-600">:</span>
-                            <span>{golesFuera}</span>
+                            <span className={Number(golesFuera) > Number(golesCasa) ? 'text-emerald-400' : 'text-slate-200'}>
+                              {golesFuera}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-[10px] font-mono text-slate-500 bg-slate-900/90 border border-slate-800/80 px-1.5 py-0.5 rounded">

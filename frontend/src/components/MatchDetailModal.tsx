@@ -367,9 +367,13 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 
               {hasScore ? (
                 <div className="flex items-center justify-center gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-black text-white">{golesLocal}</span>
+                  <span className={`text-2xl sm:text-3xl font-black ${Number(golesLocal) > Number(golesVisitante) ? 'text-emerald-400' : 'text-white'}`}>
+                    {golesLocal}
+                  </span>
                   <span className="text-slate-600 font-bold">-</span>
-                  <span className="text-2xl sm:text-3xl font-black text-white">{golesVisitante}</span>
+                  <span className={`text-2xl sm:text-3xl font-black ${Number(golesVisitante) > Number(golesLocal) ? 'text-emerald-400' : 'text-white'}`}>
+                    {golesVisitante}
+                  </span>
                 </div>
               ) : (
                 <div className="text-sm font-bold text-slate-400">VS</div>
