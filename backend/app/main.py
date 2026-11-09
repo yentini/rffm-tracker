@@ -324,14 +324,18 @@ async def get_acta_partido(
         return ActaResponse(codacta=codacta, game=acta)
     except RFEFClientError as exc:
         err_msg = str(exc)
-        if "No se encontraron datos de acta" in err_msg:
+        if (
+            "404" in err_msg
+            or "No se encontraron datos de acta" in err_msg
+            or "not found" in err_msg.lower()
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El acta arbitral aún no ha sido publicada o validada por el estamento arbitral en la RFFM.",
             ) from exc
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Error al consultar el acta del partido {codacta} desde RFFM: {exc}",
+            detail="El acta arbitral aún no está disponible en la RFFM para este partido.",
         ) from exc
 
 

@@ -43,6 +43,11 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const [emptySeasonIds, setEmptySeasonIds] = useState<Record<string, boolean>>({});
   const [seasonNotice, setSeasonNotice] = useState<string | null>(null);
 
+  const data = currentData || playerDetail;
+  const visibleTemporadas = (data?.listado_temporadas || []).filter(
+    (temp) => !emptySeasonIds[temp.codigo_temporada]
+  );
+
   // Sincronizar datos iniciales cuando cambia la prop playerDetail
   useEffect(() => {
     if (playerDetail) {
@@ -59,6 +64,59 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     }
   }, [playerDetail]);
 
+  // Comprobación proactiva en segundo plano para ocultar temporadas sin datos
+  useEffect(() => {
+    if (activeTab !== 'temporadas' || !data?.listado_temporadas || !data.codigo_jugador) return;
+
+    let isSubscribed = true;
+
+    const checkEmptySeasons = async () => {
+      const activeCod = playerDetail?.codigo_temporada || data.codigo_temporada;
+      const otherSeasons = data.listado_temporadas.filter(
+        (t) =>
+          t.codigo_temporada !== activeCod &&
+          !seasonCache[t.codigo_temporada] &&
+          emptySeasonIds[t.codigo_temporada] === undefined
+      );
+
+      for (const temp of otherSeasons) {
+        if (!isSubscribed) break;
+        try {
+          const sData = await fetchPlayerDetail(data.codigo_jugador, temp.codigo_temporada);
+          if (!isSubscribed) break;
+          const isMismatch =
+            sData.codigo_temporada &&
+            String(sData.codigo_temporada).trim() !== String(temp.codigo_temporada).trim();
+          const hasComps = Boolean(sData.competiciones_participa && sData.competiciones_participa.length > 0);
+          const jug = parseInt(
+            sData.partidos?.find((p) => p.nombre.toLowerCase().trim() === 'jugados')?.valor || '0',
+            10
+          );
+          const conv = parseInt(
+            sData.partidos?.find((p) => p.nombre.toLowerCase().trim() === 'convocados')?.valor || '0',
+            10
+          );
+          const min = parseInt(String(sData.minutos_totales_jugados || '0').replace(/\D/g, '') || '0', 10);
+          const hasActivity = hasComps || jug > 0 || conv > 0 || min > 0;
+
+          if (isMismatch || !hasActivity) {
+            setEmptySeasonIds((prev) => ({ ...prev, [temp.codigo_temporada]: true }));
+          } else {
+            setSeasonCache((prev) => ({ ...prev, [temp.codigo_temporada]: sData }));
+          }
+        } catch {
+          if (!isSubscribed) break;
+          setEmptySeasonIds((prev) => ({ ...prev, [temp.codigo_temporada]: true }));
+        }
+      }
+    };
+
+    checkEmptySeasons();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeTab, data?.codigo_jugador]);
+
   // Bloquear el scroll del fondo cuando la ficha está abierta
   useEffect(() => {
     if (isOpen) {
@@ -71,8 +129,6 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const data = currentData || playerDetail;
 
   // Cambiar de temporada consultando el histórico
   const handleSelectTemporada = async (codigoTemporada: string) => {
@@ -94,17 +150,30 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     try {
       const seasonData = await fetchPlayerDetail(data.codigo_jugador, codigoTemporada);
 
-      // Si la RFFM devolvió otra temporada (fallback por no tener datos) o no tiene equipo ni competiciones
+      // Si la RFFM devolvió otra temporada (fallback por no tener datos) o no tiene participación real
       const isMismatched =
         seasonData.codigo_temporada &&
         String(seasonData.codigo_temporada).trim() !== String(codigoTemporada).trim();
-      const hasNoStats =
-        !seasonData.equipo &&
-        (!seasonData.competiciones_participa || seasonData.competiciones_participa.length === 0);
 
-      if (isMismatched || hasNoStats) {
+      const hasCompeticiones =
+        Boolean(seasonData.competiciones_participa && seasonData.competiciones_participa.length > 0);
+      const jugadosCount = parseInt(
+        seasonData.partidos?.find((p) => p.nombre.toLowerCase().trim() === 'jugados')?.valor || '0',
+        10
+      );
+      const convocadosCount = parseInt(
+        seasonData.partidos?.find((p) => p.nombre.toLowerCase().trim() === 'convocados')?.valor || '0',
+        10
+      );
+      const minutosTotales = parseInt(
+        String(seasonData.minutos_totales_jugados || '0').replace(/\D/g, '') || '0',
+        10
+      );
+      const hasRealActivity = hasCompeticiones || jugadosCount > 0 || convocadosCount > 0 || minutosTotales > 0;
+
+      if (isMismatched || !hasRealActivity) {
         setEmptySeasonIds((prev) => ({ ...prev, [codigoTemporada]: true }));
-        setSeasonNotice('No existen datos registrados para esta temporada en la RFFM.');
+        setSeasonNotice('Esta temporada no contiene partidos ni participaciones oficiales registradas en la RFFM.');
         return;
       }
 
@@ -320,7 +389,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                   }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Trayectoria ({data.listado_temporadas?.length || 0})</span>
+                <span>Trayectoria ({visibleTemporadas.length})</span>
               </button>
             </div>
           )}
@@ -547,7 +616,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                   </p>
                 </div>
 
-                {data.listado_temporadas?.length === 0 ? (
+                {visibleTemporadas.length === 0 ? (
                   <div className="p-8 text-center bg-slate-950/40 border border-slate-800/80 rounded-2xl">
                     <Calendar className="w-7 h-7 text-slate-600 mx-auto mb-2" />
                     <p className="text-xs text-slate-400 font-medium">
@@ -576,7 +645,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {data.listado_temporadas.map((temp, idx) => {
+                      {visibleTemporadas.map((temp, idx) => {
                         const isSelected =
                           selectedTemporada === temp.codigo_temporada ||
                           data.codigo_temporada === temp.codigo_temporada;

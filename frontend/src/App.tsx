@@ -606,8 +606,19 @@ export function App() {
       setActaDetail(actaData);
     } catch (err: any) {
       console.error('Error al recuperar acta del partido:', err);
+      const rawMsg = err.message || '';
+      const isHttpOr502 =
+        rawMsg.includes('502') ||
+        rawMsg.includes('404') ||
+        rawMsg.includes('500') ||
+        rawMsg.includes('Error HTTP') ||
+        rawMsg.includes('Failed to fetch') ||
+        rawMsg.includes('NetworkError');
+
       setActaError(
-        err.message || 'El acta arbitral aún no ha sido publicada o validada en la RFFM.'
+        isHttpOr502
+          ? 'El acta arbitral aún no ha sido publicada o validada por el estamento arbitral en la RFFM. Estará disponible una vez disputado el encuentro.'
+          : rawMsg
       );
     } finally {
       setIsLoadingActa(false);

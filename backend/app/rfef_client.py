@@ -630,6 +630,8 @@ class RFEFClient:
                 self._team_names_cache[str(game_dict["codigo_equipo_visitante"])] = str(game_dict["equipo_visitante"])
 
             return ActaPartido.model_validate(game_dict)
+        except RFEFClientError:
+            raise
         except Exception as error:
             logger.error("Error al obtener acta de la RFFM: %s", error)
             raise RFEFClientError(
@@ -1065,6 +1067,27 @@ class RFEFClient:
                         )
                     )
 
+            # Si se consultó una temporada específica y no hay datos reales de juego ni competiciones,
+            # limpiamos el equipo falso que RFFM arrastra por defecto
+            has_real_stats = (
+                len(competiciones_list) > 0
+                or any(
+                    p.valor.isdigit() and int(p.valor) > 0
+                    for p in partidos_list
+                    if p.nombre.lower().strip() in ("jugados", "convocados", "titular")
+                )
+                or bool(p_raw.get("minutos_totales_jugados") and str(p_raw.get("minutos_totales_jugados")).strip() not in ("", "0"))
+            )
+            raw_equipo = p_raw.get("equipo")
+            clean_equipo = raw_equipo if (not temporada or has_real_stats) else None
+            clean_cod_equipo = (
+                str(p_raw.get("codigo_equipo"))
+                if (p_raw.get("codigo_equipo") is not None and (not temporada or has_real_stats))
+                else None
+            )
+            clean_categoria = p_raw.get("categoria_equipo") if (not temporada or has_real_stats) else None
+            clean_escudo = escudo_url if (not temporada or has_real_stats) else None
+
             return PlayerDetail(
                 codigo_jugador=str(p_raw.get("codigo_jugador", codjugador)),
                 nombre_jugador=str(p_raw.get("nombre_jugador", "")),
@@ -1074,15 +1097,11 @@ class RFEFClient:
                     if p_raw.get("anio_nacimiento") is not None
                     else None
                 ),
-                equipo=p_raw.get("equipo"),
-                codigo_equipo=(
-                    str(p_raw.get("codigo_equipo"))
-                    if p_raw.get("codigo_equipo") is not None
-                    else None
-                ),
-                escudo_equipo=escudo_url,
+                equipo=clean_equipo,
+                codigo_equipo=clean_cod_equipo,
+                escudo_equipo=clean_escudo,
                 foto=foto_url,
-                categoria_equipo=p_raw.get("categoria_equipo"),
+                categoria_equipo=clean_categoria,
                 codigo_temporada=(
                     str(p_raw.get("codigo_temporada"))
                     if p_raw.get("codigo_temporada") is not None

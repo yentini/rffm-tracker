@@ -404,10 +404,10 @@ export async function fetchActaPartido(
       headers: { 'Accept': 'application/json' },
     });
     if (!response.ok) {
-      if (response.status === 404) {
+      if (response.status === 404 || response.status === 502 || response.status === 400) {
         throw new Error('El acta arbitral aún no ha sido publicada o validada en la RFFM.');
       }
-      throw new Error(`Error ${response.status}`);
+      throw new Error('El acta no está disponible en este momento.');
     }
     const data: ActaResponse = await response.json();
     return data.game;

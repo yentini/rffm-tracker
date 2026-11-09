@@ -512,8 +512,16 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto">
                 <Clock className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-white">Acta no disponible aún</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">{error}</p>
+              <h4 className="text-sm font-bold text-white">
+                {safePartido.goles_local === null || safePartido.goles_local === undefined
+                  ? 'Partido pendiente de disputar'
+                  : 'Acta no disponible aún'}
+              </h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                {error.includes('502') || error.includes('404') || error.includes('Error')
+                  ? 'El acta arbitral aún no ha sido publicada o validada por el estamento arbitral en la RFFM. Estará disponible una vez disputado el encuentro.'
+                  : error}
+              </p>
             </div>
           ) : activeTab === 'incidencias' ? (
             <div className="space-y-3.5">
