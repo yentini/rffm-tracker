@@ -98,6 +98,8 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
   const [selectedRoundIndex, setSelectedRoundIndex] = useState<number>(0);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const currentMatchRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoScrolledRef = useRef<string | null>(null);
 
   // Inicializar en la jornada actual indicada por el backend
   useEffect(() => {
@@ -108,6 +110,41 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
       setSelectedRoundIndex(activeIdx !== -1 ? activeIdx : 0);
     }
   }, [calendario]);
+
+  // Auto-scroll a la jornada actual en la lista continua de partidos del equipo
+  useEffect(() => {
+    if (!selectedTeam || !calendario || isLoading) {
+      return;
+    }
+
+    const scrollKey = `${selectedTeam}-${calendario.competicion}-${calendario.grupo}-${calendario.current_round}`;
+    if (hasAutoScrolledRef.current === scrollKey) {
+      return;
+    }
+
+    const scrollToCurrentMatch = () => {
+      const el = currentMatchRef.current || document.getElementById('current-round-match-card');
+      if (el) {
+        el.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+        hasAutoScrolledRef.current = scrollKey;
+      }
+    };
+
+    const timer = setTimeout(scrollToCurrentMatch, 150);
+    const backupTimer = setTimeout(() => {
+      if (hasAutoScrolledRef.current !== scrollKey) {
+        scrollToCurrentMatch();
+      }
+    }, 450);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(backupTimer);
+    };
+  }, [selectedTeam, calendario, isLoading]);
 
   if (isLoading) {
     return (
@@ -152,6 +189,18 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
       });
     });
 
+    const currentRoundNum = calendario.current_round;
+    const currentMatch =
+      teamMatches.length > 0
+        ? teamMatches.find((m) => m.numeroJornada === currentRoundNum) ||
+          teamMatches.reduce((closest, curr) => {
+            return Math.abs(curr.numeroJornada - currentRoundNum) <
+              Math.abs(closest.numeroJornada - currentRoundNum)
+              ? curr
+              : closest;
+          }, teamMatches[0])
+        : null;
+
     return (
       <div className="space-y-3 sm:space-y-3.5">
         {teamMatches.length === 0 ? (
@@ -164,14 +213,24 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
             const isSelectedLocal = partido.codigo_equipo_local === selectedTeam;
             const isSelectedVisitante = partido.codigo_equipo_visitante === selectedTeam;
             const outcome = getTeamMatchOutcome(partido, selectedTeam);
+            const isCurrentMatch = currentMatch
+              ? partido.codacta === currentMatch.codacta && partido.numeroJornada === currentMatch.numeroJornada
+              : false;
+            const isCurrentRound = partido.numeroJornada === currentRoundNum;
 
             return (
               <div
                 key={`${partido.codacta}-${partido.numeroJornada}`}
+                ref={isCurrentMatch ? currentMatchRef : undefined}
+                id={isCurrentMatch ? 'current-round-match-card' : undefined}
                 onClick={() => onSelectMatch?.(partido)}
                 role="button"
                 tabIndex={0}
-                className="bg-slate-900/90 border border-slate-800 hover:border-red-500/50 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-lg shadow-black/20 transition-all hover:bg-slate-900 active:scale-[0.99] space-y-3 cursor-pointer group"
+                className={`bg-slate-900/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-lg shadow-black/20 transition-all hover:bg-slate-900 active:scale-[0.99] space-y-3 cursor-pointer group ${
+                  isCurrentRound
+                    ? 'border-2 border-emerald-500/60 ring-2 ring-emerald-500/20'
+                    : 'border border-slate-800 hover:border-red-500/50'
+                }`}
               >
                 {/* Cabecera de la Tarjeta: Jornada en grande, condición Casa/Fuera, Resultado y Fecha/Campo */}
                 <div className="pb-2.5 border-b border-slate-800/80 space-y-2">
@@ -181,6 +240,12 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                       <span className="inline-flex items-center font-black text-xs sm:text-sm tracking-wider uppercase text-white bg-gradient-to-r from-red-600 to-rose-600 px-3 py-1 rounded-xl shadow-md shadow-red-950/40 border border-red-500/40">
                         Jornada {partido.numeroJornada}
                       </span>
+                      {isCurrentRound && (
+                        <span className="inline-flex items-center gap-1 font-black text-[10px] sm:text-[11px] uppercase tracking-wider text-emerald-300 bg-emerald-500/15 border border-emerald-500/40 px-2 sm:px-2.5 py-1 rounded-xl shadow-sm">
+                          <Sparkles className="w-3 h-3 text-emerald-400" />
+                          <span>Actual</span>
+                        </span>
+                      )}
                       <span className={`text-[10px] sm:text-[11px] font-extrabold px-2 sm:px-2.5 py-1 rounded-xl border uppercase tracking-wider ${
                         isSelectedLocal
                           ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
