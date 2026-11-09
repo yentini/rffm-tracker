@@ -138,7 +138,9 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
             <button
               type="button"
               onClick={() => toggleSection('equipos')}
-              className="w-full p-5 flex items-center justify-between text-left hover:bg-slate-850/40 transition-colors focus:outline-none"
+              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-colors focus:outline-none ${
+                isEquiposOpen ? 'bg-slate-950/80 border-b border-slate-800' : 'hover:bg-slate-850/40'
+              }`}
               aria-expanded={isEquiposOpen}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -169,7 +171,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
             {/* Contenido desplegable de Equipos */}
             {isEquiposOpen && (
-              <div className="p-5 pt-3 border-t border-slate-800/80 animate-in fade-in duration-200">
+              <div className="p-3 sm:p-4 animate-in fade-in duration-200">
                 {favorites.length === 0 ? (
                   <div className="text-center py-8 px-4 space-y-3 bg-slate-950/40 rounded-2xl border border-slate-800">
                     <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500 shadow-inner">
@@ -192,14 +194,19 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-800/60">
-                    {favorites.map((fav) => {
+                  <div className="space-y-2">
+                    {favorites.map((fav, index) => {
                       const key = `${fav.teamId}_${fav.competitionId}_${fav.groupId}`;
+                      const isEven = index % 2 === 0;
 
                       return (
                         <div
                           key={key}
-                          className="py-3 first:pt-2 last:pb-1 group rounded-2xl p-2.5 transition-all hover:bg-slate-850/40"
+                          className={`group rounded-2xl p-3 transition-all border ${
+                            isEven
+                              ? 'bg-slate-950/60 hover:bg-slate-950/90 border-slate-800/80'
+                              : 'bg-slate-900/50 hover:bg-slate-850/70 border-slate-800/40'
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             {/* Información del equipo y escudo */}
@@ -283,7 +290,9 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
             <button
               type="button"
               onClick={() => toggleSection('sedes')}
-              className="w-full p-5 flex items-center justify-between text-left hover:bg-slate-850/40 transition-colors focus:outline-none"
+              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-colors focus:outline-none ${
+                isSedesOpen ? 'bg-slate-950/80 border-b border-slate-800' : 'hover:bg-slate-850/40'
+              }`}
               aria-expanded={isSedesOpen}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -314,8 +323,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
             {/* Contenido desplegable de Sedes */}
             {isSedesOpen && (
-              <div className="p-5 pt-0 border-t border-slate-800/80 animate-in fade-in duration-200">
-                <p className="text-xs text-slate-400 py-3">
+              <div className="p-3 sm:p-4 animate-in fade-in duration-200 space-y-3">
+                <p className="text-xs text-slate-400 px-1">
                   Accede a la agenda completa de partidos de tus campos e instalaciones habituales.
                 </p>
 
@@ -340,16 +349,21 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-800/60">
-                    {favoriteCampos.map((campo) => {
+                  <div className="space-y-2">
+                    {favoriteCampos.map((campo, index) => {
                       const clubAsociado = resolveFavoriteCampoClub(campo);
                       const direccion = resolveFavoriteCampoDireccion(campo);
+                      const isEven = index % 2 === 0;
 
                       return (
                         <div
                           key={campo.codigoCampo}
                           onClick={() => onSelectCampo(campo)}
-                          className="py-3.5 sm:py-4 first:pt-2 last:pb-1 group hover:bg-slate-850/40 rounded-2xl p-2.5 sm:p-3 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer"
+                          className={`group rounded-2xl p-3 sm:p-3.5 transition-all border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer ${
+                            isEven
+                              ? 'bg-slate-950/60 hover:bg-slate-950/90 border-slate-800/80'
+                              : 'bg-slate-900/50 hover:bg-slate-850/70 border-slate-800/40'
+                          }`}
                         >
                           {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
                           <div className="flex-1 min-w-0 space-y-1.5">
