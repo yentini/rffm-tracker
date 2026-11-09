@@ -213,9 +213,10 @@ async function startWhatsApp() {
 
       const myPhone = sock.user?.id ? sock.user.id.split(':')[0] : null;
       const isSelfChat = Boolean(myPhone && sender.startsWith(myPhone));
+      const isGroup = sender.endsWith('@g.us');
 
-      // Si viene de 'fromMe' pero NO es el chat con uno mismo (es decir, el usuario chateando con un amigo), ignorar
-      if (msg.key.fromMe && !isSelfChat) continue;
+      // Si viene de 'fromMe' pero NO es el chat con uno mismo ni un grupo, ignorar
+      if (msg.key.fromMe && !isSelfChat && !isGroup) continue;
 
       const text =
         msg.message.conversation ||
