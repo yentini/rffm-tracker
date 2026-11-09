@@ -31,13 +31,15 @@ from app.schemas import (
 )
 
 rfef_client = RFEFClient()
-init_db()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Ciclo de vida de la aplicación."""
-    init_db()
+    try:
+        init_db()
+    except Exception as exc:
+        print(f"Error initializing DB in lifespan: {exc}")
     yield
 
 

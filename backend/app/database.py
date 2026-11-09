@@ -46,7 +46,16 @@ def resolve_database_url(raw_url: str | None = None) -> str:
     if not url:
         return "sqlite:///./rffm.db"
     if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("postgres://", "postgresql://", 1)
+    if url.startswith("postgresql://"):
+        try:
+            import psycopg  # noqa: F401
+        except ImportError:
+            try:
+                import psycopg2  # noqa: F401
+                url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            except ImportError:
+                pass
     return url
 
 
@@ -66,10 +75,22 @@ class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models."""
 
 
-def init_db() -> None:
-    """Create database tables if they do not exist."""
+def init_db(max_retries: int = 5, retry_delay: float = 2.0) -> None:
+    """Create database tables if they do not exist with retry logic."""
+    import time
     import app.models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
+
+    last_error: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt < max_retries:
+                time.sleep(retry_delay)
+    if last_error:
+        print(f"Warning: Failed to initialize DB after {max_retries} attempts: {last_error}")
 
 
 def get_db() -> Generator[Session, None, None]:

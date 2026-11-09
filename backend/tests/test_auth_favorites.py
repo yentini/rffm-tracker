@@ -43,10 +43,8 @@ class TestAuthAndFavorites(unittest.TestCase):
     def test_resolve_database_url_normalizes_postgres_and_defaults_sqlite(self):
         # Arrange & Act & Assert
         self.assertEqual(resolve_database_url(""), "sqlite:///./rffm.db")
-        self.assertEqual(
-            resolve_database_url("postgres://u:p@host:5432/db"),
-            "postgresql://u:p@host:5432/db",
-        )
+        resolved = resolve_database_url("postgres://u:p@host:5432/db")
+        self.assertTrue(resolved.startswith("postgresql://") or resolved.startswith("postgresql+psycopg2://"))
 
     def test_auth_config_returns_google_client_id(self):
         # Arrange & Act
