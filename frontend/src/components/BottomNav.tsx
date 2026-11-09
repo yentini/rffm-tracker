@@ -14,7 +14,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const tabs = [
     { id: 'partidos', label: 'Equipos', icon: Calendar },
-    { id: 'clasificacion', label: 'Tablas', icon: Trophy },
+    { id: 'clasificacion', label: 'Clasificaciones', icon: Trophy },
     { id: 'sedes', label: 'Sedes', icon: MapPin },
     { id: 'favoritos', label: 'Favoritos', icon: Star, badge: favoritesCount > 0 ? favoritesCount : null },
     { id: 'clubes', label: 'Clubes', icon: Shield },
@@ -22,7 +22,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 safe-bottom-padding">
-      <div className="max-w-xl mx-auto px-2 sm:px-4 h-16 flex items-center justify-around">
+      <div className="max-w-xl mx-auto px-1 sm:px-4 h-16 flex items-center justify-around">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -30,7 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center w-16 py-1 transition-all active:scale-90 ${
+              className={`flex flex-col items-center justify-center flex-1 max-w-[84px] py-1 transition-all active:scale-90 ${
                 isActive ? 'text-red-500 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >

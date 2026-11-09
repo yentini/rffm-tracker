@@ -22,6 +22,7 @@ import {
   Shield,
   Calendar,
   Flame,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface ClasificacionViewProps {
@@ -40,6 +41,9 @@ interface ClasificacionViewProps {
   isLoadingCompetitions?: boolean;
   isLoadingGroups?: boolean;
   favoriteTeamCodes?: string[];
+  isFromTeam?: boolean;
+  teamName?: string;
+  onBackToTeam?: () => void;
 }
 
 type TabScope = 'general' | 'casa' | 'fuera';
@@ -60,6 +64,9 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
   isLoadingCompetitions = false,
   isLoadingGroups = false,
   favoriteTeamCodes = [],
+  isFromTeam = false,
+  teamName,
+  onBackToTeam,
 }) => {
   const [selectedJornada, setSelectedJornada] = useState<string>('1');
   const [clasificacionData, setClasificacionData] = useState<ClasificacionResponse | null>(null);
@@ -248,100 +255,136 @@ export const ClasificacionView: React.FC<ClasificacionViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 1. SELECTORES DE COMPETICIÓN Y GRUPO */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl backdrop-blur-md space-y-3">
-        <div className="flex items-center gap-2 pb-1 border-b border-slate-800/80">
-          <Trophy className="w-4 h-4 text-amber-400" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Clasificación Oficial RFFM
-          </h2>
-        </div>
+      {/* 1. SELECTORES DE COMPETICIÓN Y GRUPO (O CABECERA CONTEXTUAL SI SE LLEGA DESDE UN EQUIPO) */}
+      {isFromTeam ? (
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl backdrop-blur-md space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            {onBackToTeam && (
+              <button
+                type="button"
+                onClick={onBackToTeam}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 hover:text-white hover:border-slate-700 hover:bg-slate-800/80 transition-all text-xs font-bold active:scale-95 shadow-sm"
+                title={`Volver a ver los partidos de ${teamName || 'este equipo'}`}
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-400" />
+                <span>Volver a {teamName || 'mi equipo'}</span>
+              </button>
+            )}
 
-        {/* Fila 1: Temporada y Modalidad */}
-        <div className="grid grid-cols-2 gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full shrink-0 shadow-sm">
+              <Trophy className="w-3.5 h-3.5" />
+              <span>Clasificación del Grupo</span>
+            </span>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            {competitions.find((c) => c.codigo === selectedCompetition)?.nombre && (
+              <span className="bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300 font-medium truncate max-w-[280px]">
+                {competitions.find((c) => c.codigo === selectedCompetition)?.nombre}
+              </span>
+            )}
+            {groups.find((g) => g.codigo === selectedGroup)?.nombre && (
+              <span className="bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 text-amber-300 font-semibold truncate max-w-[200px]">
+                {groups.find((g) => g.codigo === selectedGroup)?.nombre}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 shadow-xl backdrop-blur-md space-y-3">
+          <div className="flex items-center gap-2 pb-1 border-b border-slate-800/80">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Clasificación Oficial RFFM
+            </h2>
+          </div>
+
+          {/* Fila 1: Temporada y Modalidad */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-semibold text-slate-400 mb-1 block">
+                Temporada
+              </label>
+              <select
+                value={selectedSeason}
+                onChange={(e) => onSeasonChange(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+              >
+                {seasons.map((s) => (
+                  <option key={s.cod_temporada} value={s.cod_temporada}>
+                    {s.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold text-slate-400 mb-1 block">
+                Modalidad
+              </label>
+              <select
+                value={selectedGameType}
+                onChange={(e) => onGameTypeChange(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+              >
+                {gameTypes.map((gt) => (
+                  <option key={gt.codigo_tipo_juego} value={gt.codigo_tipo_juego}>
+                    {gt.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Fila 2: Competición */}
           <div>
-            <label className="text-[10px] font-semibold text-slate-400 mb-1 block">
-              Temporada
+            <label className="text-[10px] font-semibold text-slate-400 mb-1 flex items-center justify-between">
+              <span>Competición</span>
+              {isLoadingCompetitions && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
             </label>
             <select
-              value={selectedSeason}
-              onChange={(e) => onSeasonChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+              value={selectedCompetition}
+              onChange={(e) => onCompetitionChange(e.target.value)}
+              disabled={isLoadingCompetitions || competitions.length === 0}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 truncate"
             >
-              {seasons.map((s) => (
-                <option key={s.cod_temporada} value={s.cod_temporada}>
-                  {s.nombre}
-                </option>
-              ))}
+              {competitions.length === 0 ? (
+                <option value="">Sin competiciones</option>
+              ) : (
+                competitions.map((c) => (
+                  <option key={c.codigo} value={c.codigo}>
+                    {c.nombre}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
+          {/* Fila 3: Grupo */}
           <div>
-            <label className="text-[10px] font-semibold text-slate-400 mb-1 block">
-              Modalidad
+            <label className="text-[10px] font-semibold text-slate-400 mb-1 flex items-center justify-between">
+              <span>Grupo</span>
+              {isLoadingGroups && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
             </label>
             <select
-              value={selectedGameType}
-              onChange={(e) => onGameTypeChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+              value={selectedGroup}
+              onChange={(e) => onGroupChange(e.target.value)}
+              disabled={isLoadingGroups || groups.length === 0}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
             >
-              {gameTypes.map((gt) => (
-                <option key={gt.codigo_tipo_juego} value={gt.codigo_tipo_juego}>
-                  {gt.nombre}
-                </option>
-              ))}
+              {groups.length === 0 ? (
+                <option value="">Selecciona una competición</option>
+              ) : (
+                groups.map((g) => (
+                  <option key={g.codigo} value={g.codigo}>
+                    {g.nombre}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
-
-        {/* Fila 2: Competición */}
-        <div>
-          <label className="text-[10px] font-semibold text-slate-400 mb-1 flex items-center justify-between">
-            <span>Competición</span>
-            {isLoadingCompetitions && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
-          </label>
-          <select
-            value={selectedCompetition}
-            onChange={(e) => onCompetitionChange(e.target.value)}
-            disabled={isLoadingCompetitions || competitions.length === 0}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50 truncate"
-          >
-            {competitions.length === 0 ? (
-              <option value="">Sin competiciones</option>
-            ) : (
-              competitions.map((c) => (
-                <option key={c.codigo} value={c.codigo}>
-                  {c.nombre}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        {/* Fila 3: Grupo */}
-        <div>
-          <label className="text-[10px] font-semibold text-slate-400 mb-1 flex items-center justify-between">
-            <span>Grupo</span>
-            {isLoadingGroups && <Loader2 className="w-3 h-3 animate-spin text-red-500" />}
-          </label>
-          <select
-            value={selectedGroup}
-            onChange={(e) => onGroupChange(e.target.value)}
-            disabled={isLoadingGroups || groups.length === 0}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
-          >
-            {groups.length === 0 ? (
-              <option value="">Selecciona una competición</option>
-            ) : (
-              groups.map((g) => (
-                <option key={g.codigo} value={g.codigo}>
-                  {g.nombre}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-      </div>
+      )}
 
       {/* 2. PESTAÑAS SEGMENTADAS: CLASIFICACIÓN / GOLEADORES */}
       {selectedGroup && (

@@ -93,6 +93,8 @@ export function App() {
   const [isViewingFromFavorite, setIsViewingFromFavorite] = useState<boolean>(false);
   // Permite alternar entre los partidos del equipo seleccionado y el calendario completo del grupo por jornadas
   const [showGroupCalendar, setShowGroupCalendar] = useState<boolean>(false);
+  // Si el usuario entra a la clasificación desde la vista de un equipo, ocultamos los selectores y permitimos volver al equipo
+  const [isClasificacionFromTeam, setIsClasificacionFromTeam] = useState<boolean>(false);
 
   // Estado para el modal de detalle del acta del partido
   const [selectedMatchForDetail, setSelectedMatchForDetail] = useState<PartidoCalendario | null>(null);
@@ -484,6 +486,13 @@ export function App() {
     setSelectedTeam('');
     setShowGroupCalendar(false);
     setIsViewingFromFavorite(false);
+    setIsClasificacionFromTeam(false);
+  };
+
+  // Volver desde la clasificación contextual al equipo sin resetear filtros
+  const handleBackToTeamFromClasificacion = () => {
+    setIsClasificacionFromTeam(false);
+    setActiveTab('partidos');
   };
 
   // Seleccionar favorito para cargar directamente su calendario sin los filtros de temporada/modalidad
@@ -751,7 +760,10 @@ export function App() {
                         {selectedGroup && (
                           <button
                             type="button"
-                            onClick={() => setActiveTab('clasificacion')}
+                            onClick={() => {
+                              setIsClasificacionFromTeam(true);
+                              setActiveTab('clasificacion');
+                            }}
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
                             title="Ver clasificación oficial de este grupo"
                           >
@@ -863,6 +875,13 @@ export function App() {
               isLoadingCompetitions={isLoadingCompetitions}
               isLoadingGroups={isLoadingGroups}
               favoriteTeamCodes={favorites.map((f) => f.teamId)}
+              isFromTeam={isClasificacionFromTeam && !!selectedTeam}
+              teamName={
+                teams.find((t) => t.codigo === selectedTeam)?.nombre ||
+                favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
+                'Equipo'
+              }
+              onBackToTeam={handleBackToTeamFromClasificacion}
             />
           )}
 
@@ -956,6 +975,9 @@ export function App() {
           onTabChange={(tab) => {
             if (tab === 'partidos') {
               resetToDefaultEquiposFilters();
+            }
+            if (tab === 'clasificacion') {
+              setIsClasificacionFromTeam(false);
             }
             setActiveTab(tab);
           }}

@@ -264,11 +264,6 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                     }`}>
                       {partido.equipo_local}
                     </span>
-                    {isSelectedLocal && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wide text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded">
-                        Tu equipo
-                      </span>
-                    )}
                   </div>
 
                   {/* Marcador Central */}
@@ -330,11 +325,6 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                     }`}>
                       {partido.equipo_visitante}
                     </span>
-                    {isSelectedVisitante && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wide text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded">
-                        Tu equipo
-                      </span>
-                    )}
                   </div>
                 </div>
 

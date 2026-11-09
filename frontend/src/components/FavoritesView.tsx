@@ -9,11 +9,9 @@ import {
   Award,
   Users2,
   Calendar,
-  ChevronUp,
-  ChevronDown,
-  Sparkles,
   MapPin,
   Building2,
+  ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 
@@ -73,8 +71,6 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
   favoriteCampos,
   onSelectFavorite,
   onRemoveFavorite,
-  onMoveFavorite,
-  onSetPrimaryFavorite,
   onSelectCampo,
   onRemoveFavoriteCampo,
   onGoToMatches,
@@ -197,17 +193,13 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-800/60">
-                    {favorites.map((fav, index) => {
+                    {favorites.map((fav) => {
                       const key = `${fav.teamId}_${fav.competitionId}_${fav.groupId}`;
-                      const isPrimary = index === 0;
 
                       return (
                         <div
                           key={key}
-                          className={`py-3 first:pt-2 last:pb-1 group rounded-2xl p-2.5 transition-all ${isPrimary
-                            ? 'bg-amber-500/[0.04] border border-amber-500/20 shadow-sm'
-                            : 'hover:bg-slate-850/40'
-                            }`}
+                          className="py-3 first:pt-2 last:pb-1 group rounded-2xl p-2.5 transition-all hover:bg-slate-850/40"
                         >
                           <div className="flex items-start justify-between gap-3">
                             {/* Información del equipo y escudo */}
@@ -233,28 +225,6 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                                   <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2 break-words leading-snug">
                                     {fav.teamName}
                                   </h4>
-
-                                  {isPrimary ? (
-                                    <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.15)] shrink-0">
-                                      <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-                                      Principal
-                                    </span>
-                                  ) : (
-                                    onSetPrimaryFavorite && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onSetPrimaryFavorite(fav.teamId, fav.competitionId, fav.groupId);
-                                        }}
-                                        title="Situar este equipo en primera posición"
-                                        className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-amber-300 bg-slate-950/80 hover:bg-amber-500/10 px-2 py-0.5 rounded-md border border-slate-800 hover:border-amber-500/30 transition-all opacity-80 group-hover:opacity-100 shrink-0"
-                                      >
-                                        <Star className="w-2.5 h-2.5 text-amber-400" />
-                                        <span>Hacer principal</span>
-                                      </button>
-                                    )
-                                  )}
                                 </div>
 
                                 {/* Metadatos: Competición y Grupo */}
@@ -279,35 +249,6 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
 
                             {/* Acciones */}
                             <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                              {onMoveFavorite && favorites.length > 1 && (
-                                <div className="flex flex-col gap-0.5 mr-1">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onMoveFavorite(index, index - 1);
-                                    }}
-                                    disabled={index === 0}
-                                    title="Mover arriba"
-                                    className="p-1 rounded-md bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all border border-slate-800"
-                                  >
-                                    <ChevronUp className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onMoveFavorite(index, index + 1);
-                                    }}
-                                    disabled={index === favorites.length - 1}
-                                    title="Mover abajo"
-                                    className="p-1 rounded-md bg-slate-950/80 hover:bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all border border-slate-800"
-                                  >
-                                    <ChevronDown className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-
                               <button
                                 onClick={() => onSelectFavorite(fav)}
                                 title="Ver partidos de este equipo"
