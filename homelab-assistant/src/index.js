@@ -194,6 +194,27 @@ async function startWhatsApp() {
       qrCodeData = null;
       connectedUser = sock.user?.id || 'Usuario vinculado';
       console.log('[WhatsApp] ¡Conexión establecida con éxito como:', connectedUser);
+
+      // Enviar automáticamente mensaje de prueba y bienvenida al vincular
+      setTimeout(async () => {
+        try {
+          const myPhone = (sock.user?.id || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+          if (myPhone) {
+            const welcomeJid = `${myPhone}@s.whatsapp.net`;
+            const welcomeMsg = `🍓 *¡Homelab Assistant Conectado!*\n\n` +
+              `Estoy activo y monitorizando tu Raspberry Pi 5 con IA local (Ollama).\n\n` +
+              `Pruébame respondiendo a este mensaje con:\n` +
+              `• *!status* (ver contenedores)\n` +
+              `• *!logs* (ver errores recientes)\n` +
+              `• O pregúntame: *¿cómo va el servidor?*`;
+            const sent = await sock.sendMessage(welcomeJid, { text: welcomeMsg });
+            if (sent?.key?.id) recordSentMsg(sent.key.id);
+            console.log(`[WhatsApp] Mensaje de bienvenida enviado con éxito a ${welcomeJid}`);
+          }
+        } catch (err) {
+          console.error('[WhatsApp] Error enviando bienvenida inicial:', err);
+        }
+      }, 2000);
     }
   });
 
