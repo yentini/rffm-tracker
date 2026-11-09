@@ -189,10 +189,13 @@ export function extractCategoryName(competitionName?: string, teamName?: string)
   if (text.includes('debutante')) return 'Debutante';
   if (text.includes('aficionado') || text.includes('aficionados')) return 'Aficionado';
   if (text.includes('senior') || text.includes('sénior') || text.includes('federacion') || text.includes('federación')) return 'Senior';
+  if (text.includes('preferente')) return 'Preferente';
+  if (text.includes('regional')) return 'Regional';
+  if (text.includes('rfef')) return 'Senior';
   if (text.includes('veteran')) return 'Veteranos';
   if (text.includes('femenin')) return 'Femenino';
 
-  return competitionName?.trim() || '';
+  return competitionName?.trim() || 'Fútbol';
 }
 
 /**

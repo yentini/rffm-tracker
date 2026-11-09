@@ -312,30 +312,39 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
                   </div>
                 </div>
 
-                {/* Banner de Identificación: Tu Equipo Favorito */}
-                <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800/70 text-[11px]">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
-                    <span className="font-bold text-white truncate">{m.favTeamName}</span>
-                    {m.categoryName && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/25 text-[10px] font-semibold shrink-0">
-                        {m.categoryName}
+                {/* Banner de Identificación: Tu Equipo Favorito y Categoría */}
+                <div className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-2xl bg-slate-950/70 border border-slate-800/80">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
+                    <div className="min-w-0 flex flex-col">
+                      <span className="font-bold text-white text-xs sm:text-sm truncate">
+                        {m.favTeamName}
+                      </span>
+                      {m.competitionName &&
+                        m.competitionName.toLowerCase() !== (m.categoryName || '').toLowerCase() && (
+                          <span className="text-[10px] text-slate-400 truncate">
+                            {m.competitionName}
+                          </span>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center">
+                    {(m.categoryName || m.competitionName) && (
+                      <span className="px-2.5 py-1 rounded-xl bg-rose-600/20 text-rose-300 border border-rose-500/40 text-[11px] sm:text-xs font-black uppercase tracking-wide whitespace-nowrap shadow-xs">
+                        {m.categoryName || m.competitionName}
                       </span>
                     )}
-                    <span className="text-[10px] text-slate-400 shrink-0">
-                      ({m.isLocal ? 'Local' : 'Visitante'})
-                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 truncate max-w-[140px] sm:max-w-[200px] hidden xs:inline sm:inline">
-                    {m.competitionName}
-                  </span>
                 </div>
 
                 {/* Alerta de Conflicto Horario si coincide con otro de tus equipos */}
                 {m.hasTimeConflict && (
-                  <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-300">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="truncate">{m.conflictDescription}</span>
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-snug">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="break-words font-medium">
+                      {m.conflictDescription}
+                    </span>
                   </div>
                 )}
 
