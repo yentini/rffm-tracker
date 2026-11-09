@@ -54,6 +54,19 @@ describe('Weekend Agenda Utilities', () => {
       // Sábado 19
       expect(isDateInWeekendWindow('2024-10-19', refTuesday)).toBe(false);
     });
+
+    it('en domingo debe mantener visibles los partidos del sábado y viernes del fin de semana en curso', () => {
+      // Domingo 13 de octubre de 2024
+      const refSunday = new Date('2024-10-13T16:00:00');
+      // Viernes 11
+      expect(isDateInWeekendWindow('2024-10-11', refSunday)).toBe(true);
+      // Sábado 12 (disputado ayer)
+      expect(isDateInWeekendWindow('2024-10-12', refSunday)).toBe(true);
+      // Domingo 13 (hoy)
+      expect(isDateInWeekendWindow('2024-10-13', refSunday)).toBe(true);
+      // Fin de semana anterior: no debe incluirse
+      expect(isDateInWeekendWindow('2024-10-06', refSunday)).toBe(false);
+    });
   });
 
   describe('parseDateAndDay', () => {

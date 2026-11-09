@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FavoriteTeam, PartidoCalendario } from '../types';
-import { fetchCalendario } from '../services/api';
+import { fetchCalendario, fetchTeamCompetition } from '../services/api';
+import { setFavoritesCache } from '../services/favorites';
+import { saveCloudFavoriteTeams } from '../services/auth';
 import {
   extractTeamWeekendMatches,
   processWeekendAgenda,
@@ -59,15 +61,50 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
       setIsLoading(true);
 
       try {
-        const promises = favorites.map(async (fav) => {
+        let didAutoHeal = false;
+        const updatedFavorites = [...favorites];
+
+        const promises = favorites.map(async (fav, index) => {
           try {
+            let seasonId = fav.seasonId || '22';
+            let gameTypeId = fav.gameTypeId || '1';
+            let competitionId = fav.competitionId;
+            let groupId = fav.groupId;
+
+            // Auto-resolución si falta el grupo o la competición
+            if (!groupId || !groupId.trim() || !competitionId || !competitionId.trim()) {
+              try {
+                const deduced = await fetchTeamCompetition(fav.teamId);
+                if (deduced.codigo_grupo) {
+                  groupId = deduced.codigo_grupo;
+                  competitionId = deduced.codigo_competicion || competitionId;
+                  gameTypeId = deduced.codigo_tipo_juego || gameTypeId;
+                  seasonId = deduced.codigo_temporada || seasonId;
+
+                  updatedFavorites[index] = {
+                    ...fav,
+                    groupId,
+                    groupName: deduced.nombre_grupo || fav.groupName,
+                    competitionId,
+                    competitionName: deduced.nombre_competicion || fav.competitionName,
+                    gameTypeId,
+                    seasonId,
+                  };
+                  didAutoHeal = true;
+                }
+              } catch (dedErr) {
+                console.warn(`No se pudo deducir grupo para ${fav.teamName}:`, dedErr);
+              }
+            }
+
             const cal = await fetchCalendario(
-              fav.seasonId,
-              fav.gameTypeId,
-              fav.competitionId,
-              fav.groupId
+              seasonId,
+              gameTypeId,
+              competitionId,
+              groupId,
+              fav.teamId
             );
-            return extractTeamWeekendMatches(fav, cal);
+            return extractTeamWeekendMatches(updatedFavorites[index], cal);
           } catch (err) {
             console.warn(`No se pudo cargar calendario para ${fav.teamName}:`, err);
             return [];
@@ -79,6 +116,11 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
           const allMatches = results.flat();
           const processed = processWeekendAgenda(allMatches);
           setMatches(processed);
+
+          if (didAutoHeal) {
+            setFavoritesCache(updatedFavorites);
+            saveCloudFavoriteTeams(updatedFavorites).catch(() => {});
+          }
         }
       } catch (err) {
         console.error('Error al generar agenda del fin de semana:', err);
@@ -109,42 +151,10 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Cabecera de la Agenda */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl shadow-black/40 backdrop-blur-md">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-rose-600/15 text-rose-400 border border-rose-500/30 shrink-0">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
-                <span>Agenda del Fin de Semana</span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Horarios y sedes de juego de tus equipos favoritos
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setRefreshKey((k) => k + 1)}
-              disabled={isLoading}
-              title="Refrescar horarios"
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-rose-400' : ''}`} />
-            </button>
-            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-600/10 text-rose-300 border border-rose-500/30">
-              {matches.length} {matches.length === 1 ? 'partido' : 'partidos'}
-            </span>
-          </div>
-        </div>
-
-        {/* Filtros de día (Todos / Sábado / Domingo) */}
-        {favorites.length > 0 && matches.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-4 overflow-x-auto no-scrollbar">
+      {/* Filtros de día (Cápsulas Todos / Sábado / Domingo) */}
+      {favorites.length > 0 && (
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2 sm:p-2.5 shadow-xl shadow-black/40 backdrop-blur-md flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0">
             <button
               onClick={() => setActiveFilter('todos')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
@@ -196,15 +206,27 @@ export const WeekendAgendaView: React.FC<WeekendAgendaViewProps> = ({
                     : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                <span>Otros días / Pendientes</span>
+                <span>Otro día</span>
                 <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px] font-mono">
                   {otrosCount}
                 </span>
               </button>
             )}
           </div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 pl-1 border-l border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              disabled={isLoading}
+              title="Refrescar horarios"
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-rose-400' : ''}`} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Estados de Carga, Vacío o Lista de Partidos */}
       {isLoading ? (
