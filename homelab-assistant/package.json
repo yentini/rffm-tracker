@@ -1,0 +1,15 @@
+{
+  "name": "homelab-assistant",
+  "version": "1.0.0",
+  "description": "WhatsApp Bot and AI Log Supervisor for Raspberry Pi 5 Homelab",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "express": "^4.21.2",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  }
+}
