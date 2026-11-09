@@ -455,6 +455,16 @@ export interface DeduceTeamResult {
   codigo_temporada?: string | null;
 }
 
+export interface TeamCompetitionDeduction {
+  codigo_equipo: string;
+  codigo_competicion?: string | null;
+  nombre_competicion?: string | null;
+  codigo_grupo?: string | null;
+  nombre_grupo?: string | null;
+  codigo_tipo_juego?: string | null;
+  codigo_temporada?: string | null;
+}
+
 export interface SearchTeamsResponse {
   total: number;
   teams: DeduceTeamResult[];

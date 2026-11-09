@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoleadoresTable } from './GoleadoresTable';
 import { PlayerDetailModal } from './PlayerDetailModal';
 import { fetchPlayerDetail } from '../services/api';
@@ -56,16 +56,29 @@ export const GoleadoresModal: React.FC<GoleadoresModalProps> = ({
     setPlayerError(null);
   };
 
+  // Bloquear el scroll del body al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 pt-2 sm:pt-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
         onClick={onClose}
       >
         <div
-          className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl shadow-black/90 overflow-hidden"
+          className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl h-[94dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col shadow-2xl shadow-black/90 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Cabecera del Modal */}
@@ -94,7 +107,7 @@ export const GoleadoresModal: React.FC<GoleadoresModalProps> = ({
           </div>
 
           {/* Contenido scrolleable con GoleadoresTable */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4">
             <GoleadoresTable
               competicion={competicion}
               grupo={grupo}

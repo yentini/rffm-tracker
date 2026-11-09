@@ -572,6 +572,19 @@ class DeduceTeamResult(BaseModel):
     codigo_temporada: Optional[str] = Field(default="22", description="Código de la temporada")
 
 
+class TeamCompetitionDeduction(BaseModel):
+    """Competición y grupo oficial deducidos para un equipo federado."""
+    model_config = ConfigDict(frozen=True)
+
+    codigo_equipo: str = Field(..., description="Código identificador del equipo")
+    codigo_competicion: Optional[str] = Field(default=None, description="Código de la competición oficial")
+    nombre_competicion: Optional[str] = Field(default=None, description="Nombre de la competición")
+    codigo_grupo: Optional[str] = Field(default=None, description="Código del grupo")
+    nombre_grupo: Optional[str] = Field(default=None, description="Nombre del grupo")
+    codigo_tipo_juego: Optional[str] = Field(default="1", description="Tipo de juego (1: F-11, 2: F-7)")
+    codigo_temporada: Optional[str] = Field(default="22", description="Código de la temporada")
+
+
 class SearchTeamsResponse(BaseModel):
     """Respuesta para búsqueda asistida de equipos con competición y grupo."""
     model_config = ConfigDict(frozen=True)

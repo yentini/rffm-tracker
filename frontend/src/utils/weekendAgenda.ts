@@ -117,7 +117,9 @@ export function parseDateAndDay(fechaStr?: string | null): {
 
 /**
  * Comprueba si una fecha se encuentra en la ventana activa de la agenda:
- * Desde el día actual (00:00:00) hasta el primer domingo siguiente (23:59:59).
+ * - Si estamos en fin de semana (viernes a domingo): cubre desde el viernes hasta el domingo
+ *   (incluyendo partidos ya disputados el sábado/domingo del fin de semana en curso).
+ * - Si estamos entre semana (lunes a jueves): cubre desde el día actual hasta el domingo siguiente.
  */
 export function isDateInWeekendWindow(
   matchDateStr?: string | null,
@@ -128,21 +130,37 @@ export function isDateInWeekendWindow(
   if (!parsed.timestamp) return false;
 
   const now = referenceDate || new Date();
-  const startOfToday = new Date(
+  const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+
+  let startDaysOffset = 0;
+  if (dayOfWeek === 0) {
+    // Domingo: incluir viernes (-2) y sábado (-1) para no ocultar partidos jugados el fin de semana en curso
+    startDaysOffset = -2;
+  } else if (dayOfWeek === 6) {
+    // Sábado: incluir viernes (-1)
+    startDaysOffset = -1;
+  } else if (dayOfWeek === 5) {
+    // Viernes: empieza hoy
+    startDaysOffset = 0;
+  } else {
+    // Lunes a Jueves (1 a 4): empieza hoy
+    startDaysOffset = 0;
+  }
+
+  const startOfWindow = new Date(
     now.getFullYear(),
     now.getMonth(),
-    now.getDate(),
+    now.getDate() + startDaysOffset,
     0,
     0,
     0,
     0
   ).getTime();
 
-  const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-  // Si hoy es domingo (0), el primer domingo siguiente cubre hoy hasta las 23:59:59.
-  // Si hoy es lunes a sábado (1 a 6), el primer domingo siguiente es en (7 - dayOfWeek) días.
+  // Si hoy es domingo (0), el fin de semana cubre hasta hoy a las 23:59:59.
+  // Si hoy es lunes a sábado (1 a 6), el fin de semana cubre hasta el próximo domingo en (7 - dayOfWeek) días.
   const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-  const endOfNextSunday = new Date(
+  const endOfWindow = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate() + daysUntilSunday,
@@ -152,7 +170,7 @@ export function isDateInWeekendWindow(
     999
   ).getTime();
 
-  return parsed.timestamp >= startOfToday && parsed.timestamp <= endOfNextSunday;
+  return parsed.timestamp >= startOfWindow && parsed.timestamp <= endOfWindow;
 }
 
 /**
@@ -212,6 +230,52 @@ export function extractTeamWeekendMatches(
           categoryName,
           groupName: fav.groupName,
           jornadaNum: round.numero_jornada,
+          isLocal,
+          equipoLocal: match.equipo_local,
+          escudoLocal: match.escudo_equipo_local,
+          golesLocal: match.goles_local,
+          equipoVisitante: match.equipo_visitante,
+          escudoVisitante: match.escudo_equipo_visitante,
+          golesVisitante: match.goles_visitante,
+          campo: match.campo,
+          codigoCampo: match.codigo_campo,
+          fechaRaw: match.fecha,
+          fechaFormateada: parsed.fechaFormateada,
+          hora: horaLimpia,
+          diaSemana: parsed.diaSemana,
+          diaSemanaNombre: parsed.diaSemanaNombre,
+          timestamp: parsed.timestamp,
+        });
+      }
+    }
+  }
+
+  // Si no se encontró partido por fecha estricta, comprobar si en la jornada actual
+  // el equipo tiene un partido programado (ej. con fecha pendiente o por determinar)
+  if (foundMatches.length === 0 && calendario.current_round) {
+    const activeRound = calendario.rounds.find(
+      (r) => r.numero_jornada === calendario.current_round
+    );
+    if (activeRound) {
+      for (const match of activeRound.partidos) {
+        const isLocal = match.codigo_equipo_local === fav.teamId;
+        const isVisitante = match.codigo_equipo_visitante === fav.teamId;
+        if (!isLocal && !isVisitante) continue;
+
+        const parsed = parseDateAndDay(match.fecha);
+        const horaLimpia = match.hora?.trim() || '--:--';
+        const categoryName = extractCategoryName(fav.competitionName, fav.teamName);
+
+        foundMatches.push({
+          id: `${fav.teamId}-${match.codacta || activeRound.numero_jornada}`,
+          codacta: match.codacta || '',
+          favTeamId: fav.teamId,
+          favTeamName: fav.teamName,
+          favTeamShield: fav.teamShield,
+          competitionName: fav.competitionName,
+          categoryName,
+          groupName: fav.groupName,
+          jornadaNum: activeRound.numero_jornada,
           isLocal,
           equipoLocal: match.equipo_local,
           escudoLocal: match.escudo_equipo_local,

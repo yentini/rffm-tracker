@@ -26,6 +26,7 @@ from app.schemas import (
     PlayerDetail,
     SearchTeamsResponse,
     SeasonsResponse,
+    TeamCompetitionDeduction,
     TeamDetail,
 )
 
@@ -197,15 +198,39 @@ async def get_calendario(
     temporada: str = Query(..., description="Código de temporada (ej. 22)"),
     tipojuego: str = Query(..., description="Código de modalidad de fútbol (ej. 1)"),
     competicion: str = Query(..., description="Código de la competición (ej. 26737751)"),
-    grupo: str = Query(..., description="Código del grupo (ej. 26737755)"),
+    grupo: Optional[str] = Query(None, description="Código del grupo (ej. 26737755)"),
+    equipo: Optional[str] = Query(None, description="Código de equipo opcional para auto-deducción"),
 ) -> CalendarioResponse:
     """Obtiene el calendario oficial completo agrupado por jornadas (rounds) con la jornada actual."""
+    clean_grupo = (grupo or "").strip()
+    if not clean_grupo and equipo:
+        try:
+            _, _, ded_grp, _, _ = await rfef_client.deduce_team_competition(equipo)
+            if ded_grp:
+                clean_grupo = ded_grp
+        except Exception:
+            pass
+
+    if not clean_grupo:
+        try:
+            groups_resp = await rfef_client.get_groups(competicion=competicion, temporada=temporada)
+            if groups_resp and groups_resp.groups:
+                clean_grupo = groups_resp.groups[0].codigo
+        except Exception:
+            pass
+
+    if not clean_grupo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Se requiere el código de grupo o un equipo válido para deducir el calendario.",
+        )
+
     try:
         calendario = await rfef_client.get_calendario(
             temporada=temporada,
             tipojuego=tipojuego,
             competicion=competicion,
-            grupo=grupo,
+            grupo=clean_grupo,
         )
         return calendario
     except RFEFClientError as exc:
@@ -406,6 +431,35 @@ async def get_team_detail(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Error al consultar ficha de equipo en RFFM: {exc}",
+        ) from exc
+
+
+@app.get(
+    "/api/teams/{codficha}/competition",
+    response_model=TeamCompetitionDeduction,
+    status_code=status.HTTP_200_OK,
+    tags=["Equipos"],
+    summary="Deduce competición y grupo oficial de un equipo",
+)
+async def deduce_team_competition_endpoint(
+    codficha: str = Path(..., description="Código identificador del equipo en la RFFM"),
+) -> TeamCompetitionDeduction:
+    """Deduce automáticamente la competición oficial, grupo y modalidad para un equipo."""
+    try:
+        comp_id, comp_name, grp_id, grp_name, tj = await rfef_client.deduce_team_competition(codficha)
+        return TeamCompetitionDeduction(
+            codigo_equipo=codficha,
+            codigo_competicion=comp_id,
+            nombre_competicion=comp_name,
+            codigo_grupo=grp_id,
+            nombre_grupo=grp_name,
+            codigo_tipo_juego=tj,
+            codigo_temporada="22",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error al deducir competición para el equipo {codficha}: {exc}",
         ) from exc
 
 

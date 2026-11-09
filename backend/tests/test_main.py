@@ -958,6 +958,35 @@ class TestCamposAPI(unittest.TestCase):
         self.assertEqual(data["partidos"][0]["fecha"], "2026-09-26 10:45:00")
         self.assertEqual(data["partidos"][0]["nombre_equipo_casa"], "A.D. FUNDACION 'A'")
 
+    @patch("app.main.rfef_client.deduce_team_competition", new_callable=AsyncMock)
+    def test_deduce_team_competition_endpoint(self, mock_deduce):
+        mock_deduce.return_value = (
+            "26738047", "SUPERLIGA CADETE", "26738048", "Grupo Unico", "1"
+        )
+        response = self.client.get("/api/teams/1598/competition")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["codigo_equipo"], "1598")
+        self.assertEqual(data["codigo_competicion"], "26738047")
+        self.assertEqual(data["codigo_grupo"], "26738048")
+        self.assertEqual(data["codigo_tipo_juego"], "1")
+
+    @patch("app.main.rfef_client.deduce_team_competition", new_callable=AsyncMock)
+    @patch("app.main.rfef_client.get_calendario", new_callable=AsyncMock)
+    def test_get_calendario_auto_deduces_group(self, mock_get_cal, mock_deduce):
+        from app.schemas import CalendarioResponse
+        mock_deduce.return_value = (
+            "26737751", "PRIMERA CADETE", "26737755", "Grupo 4", "1"
+        )
+        mock_get_cal.return_value = CalendarioResponse(
+            temporada="22", tipojuego="1", competicion="26737751", grupo="26737755", total_jornadas=0, rounds=[]
+        )
+        response = self.client.get("/api/calendario?temporada=22&tipojuego=1&competicion=26737751&equipo=364579")
+        self.assertEqual(response.status_code, 200)
+        mock_get_cal.assert_called_once_with(
+            temporada="22", tipojuego="1", competicion="26737751", grupo="26737755"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

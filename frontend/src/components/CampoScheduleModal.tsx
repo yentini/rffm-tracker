@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Shield,
   Star,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface CampoScheduleModalProps {
@@ -57,6 +58,23 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
   const [activeDate, setActiveDate] = useState<string>('all');
   const [matchOverrides, setMatchOverrides] = useState<Record<string, MatchNameOverride>>({});
   const dateScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const listScrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Bloquear scroll de la página de fondo al abrir el modal
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  // Resetear scroll al cambiar fecha o sede
+  useEffect(() => {
+    if (listScrollContainerRef.current) {
+      listScrollContainerRef.current.scrollTop = 0;
+    }
+  }, [activeDate, codigoCampo]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -264,26 +282,35 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-start sm:items-center justify-center p-2 sm:p-4 pt-2 sm:pt-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-[32px] sm:rounded-[32px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col h-[94dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del modal */}
-        <div className="p-5 pb-4 border-b border-slate-800/80 bg-slate-950/60 shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 mt-0.5">
-                <MapPin className="w-5 h-5" />
+        <div className="p-4 sm:p-5 pb-3 sm:pb-4 border-b border-slate-800/80 bg-slate-950/80 shrink-0">
+          <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 sm:hidden rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all shrink-0 mt-0.5 active:scale-95"
+                title="Volver"
+                aria-label="Volver"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div className="p-2 sm:p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 mt-0.5">
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-bold text-white tracking-tight line-clamp-2 leading-snug break-words">
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight line-clamp-2 leading-snug break-words">
                   {campoData?.nombre_campo || nombreCampoFallback || 'Instalación Deportiva'}
                 </h3>
                 {campoData?.direccion && (
-                  <p className="text-xs text-slate-400 truncate mt-0.5 flex items-center gap-1">
+                  <p className="text-[11px] sm:text-xs text-slate-400 truncate mt-0.5 flex items-center gap-1">
                     <span>{campoData.direccion}</span>
                     {campoData.localidad && <span>• {campoData.localidad}</span>}
                   </p>
@@ -297,14 +324,13 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                   type="button"
                   onClick={() => onToggleFavorite(campoData || undefined)}
                   title={isFavorite ? 'Quitar de sedes favoritas' : 'Añadir a sedes favoritas'}
-                  className={`p-2 rounded-xl transition-all active:scale-90 ${
-                    isFavorite
+                  className={`p-2 rounded-xl transition-all active:scale-90 ${isFavorite
                       ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30'
                       : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'
-                  }`}
+                    }`}
                   aria-label={isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
                 >
-                  <Star className={`w-5 h-5 ${isFavorite ? 'fill-emerald-400' : ''}`} />
+                  <Star className={`w-4 h-4 sm:w-5 sm:h-5 ${isFavorite ? 'fill-emerald-400' : ''}`} />
                 </button>
               )}
               <button
@@ -357,11 +383,10 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
               type="button"
               data-active={activeDate === 'all'}
               onClick={() => setActiveDate('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                activeDate === 'all'
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${activeDate === 'all'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'bg-slate-800/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
+                }`}
             >
               <span>Todos los partidos</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-bold">
@@ -381,21 +406,19 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
                   type="button"
                   data-active={isSelected}
                   onClick={() => setActiveDate(dStr)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                    isSelected
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${isSelected
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                       : 'bg-slate-800/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  }`}
+                    }`}
                 >
                   <Calendar className="w-3 h-3" />
                   <span className="capitalize">{formatDateLabel(dStr)}</span>
                   {isToday && (
                     <span
-                      className={`text-[9px] uppercase px-1 py-0.5 rounded font-black tracking-wider ${
-                        isSelected
+                      className={`text-[9px] uppercase px-1 py-0.5 rounded font-black tracking-wider ${isSelected
                           ? 'bg-slate-950 text-amber-400'
                           : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      }`}
+                        }`}
                     >
                       Hoy
                     </span>
@@ -410,7 +433,7 @@ export const CampoScheduleModal: React.FC<CampoScheduleModalProps> = ({
         )}
 
         {/* Cuerpo / Lista de partidos */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div ref={listScrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-5 space-y-3">
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-14 space-y-3">
               <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />

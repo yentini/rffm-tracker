@@ -57,6 +57,17 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     }
   }, [playerDetail]);
 
+  // Bloquear el scroll del fondo cuando la ficha está abierta
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const data = currentData || playerDetail;
@@ -113,9 +124,14 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const dobleAmarilla = getCardStat('doble amarilla');
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-2 sm:p-4 pt-2 sm:pt-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl shadow-black/90 overflow-hidden"
+        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl h-[94dvh] sm:h-auto max-h-[95dvh] sm:max-h-[92vh] flex flex-col shadow-2xl shadow-black/90 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera de la Ficha */}
@@ -254,11 +270,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
             <div className="flex items-center gap-2 mt-4 pt-2 border-t border-slate-800/60">
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'stats'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'stats'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Activity className="w-3.5 h-3.5" />
                 <span>Estadísticas</span>
@@ -266,11 +281,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('competiciones')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'competiciones'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'competiciones'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Trophy className="w-3.5 h-3.5" />
                 <span>Competiciones ({data.competiciones_participa?.length || 0})</span>
@@ -278,11 +292,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('temporadas')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'temporadas'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'temporadas'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>Trayectoria ({data.listado_temporadas?.length || 0})</span>
@@ -292,7 +305,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
         </div>
 
         {/* Cuerpo del Modal */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <div className="p-4 sm:p-6 min-h-0 overflow-y-auto flex-1 space-y-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -428,9 +441,8 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                           >
                             <div className="flex items-center gap-2">
                               <span
-                                className={`w-2.5 h-3.5 rounded-[1px] inline-block ${
-                                  isRed ? 'bg-red-500 shadow-red-500/50' : 'bg-yellow-400 shadow-yellow-500/50'
-                                } shadow-sm`}
+                                className={`w-2.5 h-3.5 rounded-[1px] inline-block ${isRed ? 'bg-red-500 shadow-red-500/50' : 'bg-yellow-400 shadow-yellow-500/50'
+                                  } shadow-sm`}
                               />
                               <span className="text-xs text-slate-300 font-medium">{tarj.nombre}</span>
                             </div>
@@ -546,18 +558,16 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                             type="button"
                             onClick={() => handleSelectTemporada(temp.codigo_temporada)}
                             disabled={isSeasonLoading}
-                            className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 cursor-pointer ${
-                              isSelected
+                            className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 cursor-pointer ${isSelected
                                 ? 'bg-blue-600/20 border-blue-500 shadow-md shadow-blue-950/40 ring-1 ring-blue-500/50'
                                 : 'bg-slate-900/70 border-slate-800/60 hover:border-slate-600 hover:bg-slate-800/60'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <div className="flex items-center gap-2">
                                 <Calendar
-                                  className={`w-4 h-4 ${
-                                    isSelected ? 'text-blue-400' : 'text-slate-400'
-                                  }`}
+                                  className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-slate-400'
+                                    }`}
                                 />
                                 <span className="text-xs font-bold text-white">
                                   {temp.nombre_temporada}

@@ -276,11 +276,11 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md transition-opacity animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 pt-2 sm:pt-4 bg-black/85 backdrop-blur-md transition-opacity animate-in fade-in"
       onClick={onClose}
     >
-      <div 
-        className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col transition-all"
+      <div
+        className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden h-[94dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del modal */}
@@ -375,13 +375,12 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 <div className="text-sm font-bold text-slate-400">VS</div>
               )}
 
-              <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                data.acta_cerrada === '1' 
-                  ? 'bg-slate-800 text-slate-300 border border-slate-700' 
+              <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${data.acta_cerrada === '1'
+                  ? 'bg-slate-800 text-slate-300 border border-slate-700'
                   : data.partido_en_juego === '1'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse'
-                  : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-              }`}>
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse'
+                    : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                }`}>
                 {data.acta_cerrada === '1' ? 'FINALIZADO' : data.partido_en_juego === '1' ? 'EN JUEGO' : 'PROGRAMADO'}
               </span>
             </div>
@@ -470,31 +469,28 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         <div className="flex border-b border-slate-800 bg-slate-950/40 px-3 shrink-0">
           <button
             onClick={() => setActiveTab('incidencias')}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
-              activeTab === 'incidencias'
+            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${activeTab === 'incidencias'
                 ? 'border-rose-500 text-rose-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+              }`}
           >
             Incidencias ({golesLocalList.length + golesVisitanteList.length} goles)
           </button>
           <button
             onClick={() => setActiveTab('alineaciones')}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
-              activeTab === 'alineaciones'
+            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${activeTab === 'alineaciones'
                 ? 'border-rose-500 text-rose-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+              }`}
           >
             Alineaciones
           </button>
           <button
             onClick={() => setActiveTab('info')}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
-              activeTab === 'info'
+            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${activeTab === 'info'
                 ? 'border-rose-500 text-rose-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
+              }`}
           >
             Información & Árbitros
           </button>
@@ -561,13 +557,12 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                       >
                         {/* Nodo del timeline */}
                         <span
-                          className={`absolute -left-[18px] sm:-left-[22px] w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${
-                            isGoal
+                          className={`absolute -left-[18px] sm:-left-[22px] w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${isGoal
                               ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]'
                               : isRed
-                              ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]'
-                              : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]'
-                          }`}
+                                ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]'
+                                : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]'
+                            }`}
                         />
 
                         {/* Minuto con ancho fijo para mantener perfecta alineación */}
@@ -620,11 +615,10 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 
                           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
                             <span
-                              className={`font-semibold px-1.5 py-0.2 rounded ${
-                                isLocal
+                              className={`font-semibold px-1.5 py-0.2 rounded ${isLocal
                                   ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
                                   : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
-                              }`}
+                                }`}
                             >
                               {isLocal ? 'Local' : 'Visitante'}: {event.nombreEquipo}
                             </span>
@@ -655,21 +649,19 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               <div className="flex rounded-2xl bg-slate-950 p-1 border border-slate-800">
                 <button
                   onClick={() => setTeamTab('local')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all truncate px-2 ${
-                    teamTab === 'local'
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all truncate px-2 ${teamTab === 'local'
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {equipoLocal}
                 </button>
                 <button
                   onClick={() => setTeamTab('visitante')}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all truncate px-2 ${
-                    teamTab === 'visitante'
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all truncate px-2 ${teamTab === 'visitante'
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                       : 'text-slate-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {equipoVisitante}
                 </button>
@@ -702,11 +694,10 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                           <div
                             key={`tit-${i}`}
                             onClick={() => j.codjugador && handleOpenPlayer(j.codjugador)}
-                            className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs transition-all ${
-                              j.codjugador
+                            className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs transition-all ${j.codjugador
                                 ? 'hover:border-blue-500/50 hover:bg-slate-900/80 cursor-pointer group'
                                 : ''
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
                               <span className="w-6 h-6 rounded-lg bg-slate-800 text-rose-400 font-extrabold flex items-center justify-center text-[11px] border border-slate-700 group-hover:text-blue-300">
@@ -748,11 +739,10 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                             <div
                               key={`sup-${i}`}
                               onClick={() => j.codjugador && handleOpenPlayer(j.codjugador)}
-                              className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 text-xs opacity-90 transition-all ${
-                                j.codjugador
+                              className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/60 text-xs opacity-90 transition-all ${j.codjugador
                                   ? 'hover:border-blue-500/50 hover:bg-slate-900/80 cursor-pointer group hover:opacity-100'
                                   : ''
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-2.5 truncate">
                                 <span className="w-6 h-6 rounded-lg bg-slate-800/60 text-slate-300 font-bold flex items-center justify-center text-[11px] border border-slate-700/60 group-hover:text-blue-300">

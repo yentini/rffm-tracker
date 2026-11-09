@@ -22,6 +22,7 @@ import {
   ClasificacionEquipo,
   JornadaInfo,
   SearchTeamsResponse,
+  TeamCompetitionDeduction,
   CampoDetailResponse,
   CamposSearchResponse,
   GoleadoresResponse,
@@ -338,13 +339,15 @@ export async function fetchCalendario(
   temporada: string,
   tipojuego: string,
   competicion: string,
-  grupo: string
+  grupo: string,
+  equipo?: string
 ): Promise<CalendarioResponse> {
   const url = new URL(`${BASE_URL}/api/calendario`);
   url.searchParams.set('temporada', temporada);
   url.searchParams.set('tipojuego', tipojuego);
   url.searchParams.set('competicion', competicion);
-  url.searchParams.set('grupo', grupo);
+  if (grupo) url.searchParams.set('grupo', grupo);
+  if (equipo) url.searchParams.set('equipo', equipo);
 
   try {
     const response = await fetch(url.toString(), {
@@ -602,6 +605,20 @@ export async function fetchTeamDetail(codficha: string): Promise<TeamDetail> {
     }
     throw error;
   }
+}
+
+/**
+ * Deduce automáticamente la competición oficial, grupo y modalidad para un equipo federado.
+ */
+export async function fetchTeamCompetition(
+  codficha: string
+): Promise<TeamCompetitionDeduction> {
+  const url = new URL(`${BASE_URL}/api/teams/${encodeURIComponent(codficha)}/competition`);
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Status ${response.status}`);
+  return await response.json();
 }
 
 export async function fetchPlayerDetail(

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ClubDetail, TeamDetail } from '../types';
 import { fetchTeamDetail } from '../services/api';
 import { TeamDetailModal } from './TeamDetailModal';
@@ -163,12 +163,28 @@ export const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
       .filter((c) => c.id === 'todos' || c.count > 0);
   }, [clubDetail?.equipos]);
 
+  // Bloquear el scroll del body al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 pt-2 sm:pt-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl shadow-black/80 overflow-hidden"
+        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl h-[94dvh] sm:h-auto max-h-[95dvh] sm:max-h-[90vh] flex flex-col shadow-2xl shadow-black/80 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del Club */}
@@ -237,22 +253,20 @@ export const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
             <div className="flex items-center gap-2 mt-4 pt-2 border-t border-slate-800/60">
               <button
                 onClick={() => setActiveTab('equipos')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'equipos'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'equipos'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>Equipos ({clubDetail.equipos?.length || 0})</span>
               </button>
               <button
                 onClick={() => setActiveTab('datos')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'datos'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'datos'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Ficha del Club</span>
@@ -262,7 +276,7 @@ export const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
         </div>
 
         {/* Contenido Principal con Scroll */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4">
           {isLoading ? (
             <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -311,11 +325,10 @@ export const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
                       <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all border ${
-                          selectedCategory === cat.id
+                        className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all border ${selectedCategory === cat.id
                             ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-sm'
                             : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white'
-                        }`}
+                          }`}
                       >
                         {cat.label} ({cat.count})
                       </button>
@@ -360,11 +373,10 @@ export const ClubDetailModal: React.FC<ClubDetailModalProps> = ({
 
                           <div className="shrink-0 flex items-center gap-2">
                             <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                                isCompeting
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${isCompeting
                                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                   : 'bg-slate-800 text-slate-400 border-slate-700'
-                              }`}
+                                }`}
                             >
                               {isCompeting ? 'En competición' : 'No compite'}
                             </span>
