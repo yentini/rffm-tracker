@@ -29,6 +29,16 @@ let qrCodeData = null;
 let connectionStatus = 'Iniciando...';
 let connectedUser = null;
 let sock = null;
+const sentByBotMsgIds = new Set();
+
+function recordSentMsg(id) {
+  if (!id) return;
+  sentByBotMsgIds.add(id);
+  if (sentByBotMsgIds.size > 1000) {
+    const first = sentByBotMsgIds.values().next().value;
+    sentByBotMsgIds.delete(first);
+  }
+}
 
 // ==========================================
 // Express Web Dashboard for QR Code & Status
@@ -154,7 +164,6 @@ async function startWhatsApp() {
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true, // Imprime en los logs de Dokploy también
     logger: pino({ level: 'silent' }),
     browser: ['Homelab-Pi5', 'Chrome', '120.0.0']
   });
@@ -190,60 +199,81 @@ async function startWhatsApp() {
 
   // Listener de mensajes entrantes
   sock.ev.on('messages.upsert', async (m) => {
-    const msg = m.messages[0];
-    if (!msg || !msg.message || msg.key.fromMe) return;
+    for (const msg of m.messages) {
+      if (!msg || !msg.message) continue;
 
-    const sender = msg.key.remoteJid;
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      '';
-
-    const cleanText = text.trim();
-    if (!cleanText) return;
-
-    console.log(`[WhatsApp] Mensaje recibido de ${sender}: "${cleanText}"`);
-
-    // Mostrar estado "escribiendo..." en WhatsApp
-    await sock.sendPresenceUpdate('composing', sender);
-
-    try {
-      let reply = '';
-
-      if (cleanText.toLowerCase() === '!status') {
-        const { running, exited } = await getContainersStatus();
-        reply = `📊 *ESTADO HOMELAB RASPBERRY PI 5*\n\n` +
-          `🟢 *Contenedores Activos (${running.length}):*\n` +
-          running.map((r) => `• ${r.name}`).join('\n') +
-          (exited.length > 0 ? `\n\n🔴 *Detenidos (${exited.length}):*\n` + exited.map((e) => `• ${e.name}`).join('\n') : '');
-      } else if (cleanText.toLowerCase() === '!logs') {
-        const errors = await getErrorsSummary();
-        if (errors.length === 0) {
-          reply = `✅ *AUDITORÍA DE LOGS*\n\nNo se han detectado errores en las aplicaciones en ejecución.`;
-        } else {
-          reply = `⚠️ *ERRORES RECIENTES EN LOGS*\n\n` +
-            errors.map((e) => `*${e.app}* (${e.errorCount} incidencias):\n${e.recentSamples.map((s) => `• \`${s.slice(0, 100)}\``).join('\n')}`).join('\n\n');
-        }
-      } else if (cleanText.toLowerCase() === '!ayuda' || cleanText.toLowerCase() === '!help') {
-        reply = `🤖 *ASISTENTE INTELIGENTE HOMELAB*\n\n` +
-          `Puedes preguntarme lo que quieras en lenguaje natural o usar estos comandos rápidos:\n` +
-          `• *!status*: Lista contenedores activos y parados.\n` +
-          `• *!logs*: Resumen de errores recientes en RFFM y CAVA.\n` +
-          `• *Preguntas libres*: Escríbeme "¿cómo va el servidor?", "¿hay algún problema con la base de datos?", etc.`;
-      } else {
-        // Consulta inteligente a Ollama con contexto de logs y contenedores
-        const { summary } = await buildServerAuditContext();
-        reply = await askOllama(cleanText, summary);
+      // Si el mensaje fue enviado por el bot, ignorar para evitar bucles
+      if (sentByBotMsgIds.has(msg.key.id)) {
+        sentByBotMsgIds.delete(msg.key.id);
+        continue;
       }
 
-      await sock.sendMessage(sender, { text: reply });
-    } catch (err) {
-      console.error('[WhatsApp] Error al procesar mensaje:', err);
-      await sock.sendMessage(sender, {
-        text: `⚠️ Ocurrió un error al procesar tu solicitud: ${err.message}`
-      });
-    } finally {
-      await sock.sendPresenceUpdate('paused', sender);
+      const sender = msg.key.remoteJid;
+      if (!sender || sender.endsWith('@broadcast') || sender.endsWith('@newsletter')) continue;
+
+      const myPhone = sock.user?.id ? sock.user.id.split(':')[0] : null;
+      const isSelfChat = Boolean(myPhone && sender.startsWith(myPhone));
+
+      // Si viene de 'fromMe' pero NO es el chat con uno mismo (es decir, el usuario chateando con un amigo), ignorar
+      if (msg.key.fromMe && !isSelfChat) continue;
+
+      const text =
+        msg.message.conversation ||
+        msg.message.extendedTextMessage?.text ||
+        '';
+
+      const cleanText = text.trim();
+      if (!cleanText) continue;
+
+      console.log(`[WhatsApp] Mensaje recibido de ${sender} (selfChat: ${isSelfChat}): "${cleanText}"`);
+
+      // Mostrar estado "escribiendo..." en WhatsApp
+      await sock.sendPresenceUpdate('composing', sender);
+
+      try {
+        let reply = '';
+
+        if (cleanText.toLowerCase() === '!status') {
+          const { running, exited } = await getContainersStatus();
+          reply = `📊 *ESTADO HOMELAB RASPBERRY PI 5*\n\n` +
+            `🟢 *Contenedores Activos (${running.length}):*\n` +
+            running.map((r) => `• ${r.name}`).join('\n') +
+            (exited.length > 0 ? `\n\n🔴 *Detenidos (${exited.length}):*\n` + exited.map((e) => `• ${e.name}`).join('\n') : '');
+        } else if (cleanText.toLowerCase() === '!logs') {
+          const errors = await getErrorsSummary();
+          if (errors.length === 0) {
+            reply = `✅ *AUDITORÍA DE LOGS*\n\nNo se han detectado errores en las aplicaciones en ejecución.`;
+          } else {
+            reply = `⚠️ *ERRORES RECIENTES EN LOGS*\n\n` +
+              errors.map((e) => `*${e.app}* (${e.errorCount} incidencias):\n${e.recentSamples.map((s) => `• \`${s.slice(0, 100)}\``).join('\n')}`).join('\n\n');
+          }
+        } else if (cleanText.toLowerCase() === '!ayuda' || cleanText.toLowerCase() === '!help') {
+          reply = `🤖 *ASISTENTE INTELIGENTE HOMELAB*\n\n` +
+            `Puedes preguntarme lo que quieras en lenguaje natural o usar estos comandos rápidos:\n` +
+            `• *!status*: Lista contenedores activos y parados.\n` +
+            `• *!logs*: Resumen de errores recientes en RFFM y CAVA.\n` +
+            `• *Preguntas libres*: Escríbeme "¿cómo va el servidor?", "¿hay algún problema con la base de datos?", etc.`;
+        } else {
+          // Consulta inteligente a Ollama con contexto de logs y contenedores
+          const { summary } = await buildServerAuditContext();
+          reply = await askOllama(cleanText, summary);
+        }
+
+        const sent = await sock.sendMessage(sender, { text: reply });
+        if (sent?.key?.id) {
+          recordSentMsg(sent.key.id);
+        }
+      } catch (err) {
+        console.error('[WhatsApp] Error al procesar mensaje:', err);
+        const sentErr = await sock.sendMessage(sender, {
+          text: `⚠️ Ocurrió un error al procesar tu solicitud: ${err.message}`
+        });
+        if (sentErr?.key?.id) {
+          recordSentMsg(sentErr.key.id);
+        }
+      } finally {
+        await sock.sendPresenceUpdate('paused', sender);
+      }
     }
   });
 }
@@ -253,3 +283,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`[HTTP] Panel de vinculación QR corriendo en http://0.0.0.0:${PORT}`);
   startWhatsApp().catch((err) => console.error('[WhatsApp Init Error]', err));
 });
+
