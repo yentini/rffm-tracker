@@ -199,6 +199,8 @@ async function startWhatsApp() {
 
   // Listener de mensajes entrantes
   sock.ev.on('messages.upsert', async (m) => {
+    if (!m.messages || m.messages.length === 0) return;
+
     for (const msg of m.messages) {
       if (!msg || !msg.message) continue;
 
@@ -211,25 +213,28 @@ async function startWhatsApp() {
       const sender = msg.key.remoteJid;
       if (!sender || sender.endsWith('@broadcast') || sender.endsWith('@newsletter')) continue;
 
-      const myPhone = sock.user?.id ? sock.user.id.split(':')[0] : null;
-      const isSelfChat = Boolean(myPhone && sender.startsWith(myPhone));
+      const myJid = sock.user?.id || sock.authState?.creds?.me?.id || '';
+      const myPhone = myJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+      const senderPhone = sender.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+
+      const isSelfChat = Boolean(myPhone && senderPhone && myPhone === senderPhone);
       const isGroup = sender.endsWith('@g.us');
 
-      // Si viene de 'fromMe' pero NO es el chat con uno mismo ni un grupo, ignorar
-      if (msg.key.fromMe && !isSelfChat && !isGroup) continue;
-
-      const text =
-        msg.message.conversation ||
-        msg.message.extendedTextMessage?.text ||
-        '';
-
-      const cleanText = text.trim();
+      const cleanText = extractMessageText(msg).trim();
       if (!cleanText) continue;
 
-      console.log(`[WhatsApp] Mensaje recibido de ${sender} (selfChat: ${isSelfChat}): "${cleanText}"`);
+      const isExplicitCommand = cleanText.startsWith('!') || cleanText.toLowerCase().startsWith('bot');
+      const shouldProcess = isSelfChat || !msg.key.fromMe || isExplicitCommand;
+
+      console.log(`[WhatsApp Msg] from=${sender} (fromMe=${msg.key.fromMe}, isSelf=${isSelfChat}, isGroup=${isGroup}, shouldProcess=${shouldProcess}): "${cleanText}"`);
+
+      if (!shouldProcess) continue;
+
+      // Determinar destinatario normalizado (para self-chat, enviar a número directo sin sufijo de dispositivo)
+      const targetJid = isSelfChat && myPhone ? `${myPhone}@s.whatsapp.net` : sender;
 
       // Mostrar estado "escribiendo..." en WhatsApp
-      await sock.sendPresenceUpdate('composing', sender);
+      await sock.sendPresenceUpdate('composing', targetJid);
 
       try {
         let reply = '';
@@ -260,23 +265,40 @@ async function startWhatsApp() {
           reply = await askOllama(cleanText, summary);
         }
 
-        const sent = await sock.sendMessage(sender, { text: reply });
+        const sent = await sock.sendMessage(targetJid, { text: reply });
         if (sent?.key?.id) {
           recordSentMsg(sent.key.id);
         }
       } catch (err) {
         console.error('[WhatsApp] Error al procesar mensaje:', err);
-        const sentErr = await sock.sendMessage(sender, {
+        const sentErr = await sock.sendMessage(targetJid, {
           text: `⚠️ Ocurrió un error al procesar tu solicitud: ${err.message}`
         });
         if (sentErr?.key?.id) {
           recordSentMsg(sentErr.key.id);
         }
       } finally {
-        await sock.sendPresenceUpdate('paused', sender);
+        await sock.sendPresenceUpdate('paused', targetJid);
       }
     }
   });
+}
+
+function extractMessageText(msg) {
+  if (!msg || !msg.message) return '';
+  let m = msg.message;
+  if (m.ephemeralMessage?.message) m = m.ephemeralMessage.message;
+  if (m.viewOnceMessage?.message) m = m.viewOnceMessage.message;
+  if (m.viewOnceMessageV2?.message) m = m.viewOnceMessageV2.message;
+  if (m.documentWithCaptionMessage?.message) m = m.documentWithCaptionMessage.message;
+
+  return (
+    m.conversation ||
+    m.extendedTextMessage?.text ||
+    m.imageMessage?.caption ||
+    m.videoMessage?.caption ||
+    ''
+  );
 }
 
 // Iniciar servidor web y conexión de WhatsApp
