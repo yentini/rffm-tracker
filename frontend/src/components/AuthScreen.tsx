@@ -131,8 +131,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       {/* Formulario Email + Contraseña (con doble verificación en Alta Rápida y botón de mostrar/ocultar) */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="block text-[11px] font-medium text-slate-400 mb-1">
-            Correo electrónico
+          <label className="block text-[11px] font-medium text-slate-400 mb-1 leading-snug">
+            Correo electrónico{' '}
+            {tab === 'register' && (
+              <span className="text-[10px] text-slate-500 font-normal">
+                (No tiene por qué existir el correo electrónico, es únicamente para el alta en la aplicación)
+              </span>
+            )}
           </label>
           <div className="relative">
             <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />

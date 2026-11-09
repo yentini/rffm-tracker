@@ -323,30 +323,30 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 
         {/* Marcador Principal */}
         <div className="p-3.5 sm:p-4 bg-gradient-to-b from-slate-950/90 to-slate-900/60 border-b border-slate-800 shrink-0">
-          <div className="grid grid-cols-7 items-center gap-2 text-center">
+          <div className="grid grid-cols-12 items-center gap-1.5 sm:gap-2 text-center">
             {/* Local */}
-            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
+            <div className="col-span-4 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
                 {escudoLocal ? (
                   <img
                     src={escudoLocal}
                     alt={equipoLocal}
-                    className="w-10 h-10 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
+                    className="w-9 h-9 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <Shield className="w-7 h-7 text-slate-500 shrink-0" />
+                  <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-slate-500 shrink-0" />
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight">
+              <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight px-1">
                 {equipoLocal}
               </h3>
             </div>
 
             {/* Resultado o Estado con Fecha y Hora en el centro encima */}
-            <div className="col-span-1 flex flex-col items-center justify-center space-y-1">
+            <div className="col-span-4 flex flex-col items-center justify-center space-y-1 min-w-0 px-1">
               {/* Fecha y Hora en el centro encima del resultado */}
               {(data.fecha || partido.fecha || data.hora || partido.hora) && (
                 <div className="flex flex-col items-center leading-none text-[10px] font-bold text-slate-400 mb-0.5 whitespace-nowrap">
@@ -379,7 +379,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 <div className="text-sm font-bold text-slate-400">VS</div>
               )}
 
-              <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${data.acta_cerrada === '1'
+              <span className={`text-[9px] sm:text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap ${data.acta_cerrada === '1'
                   ? 'bg-slate-800 text-slate-300 border border-slate-700'
                   : data.partido_en_juego === '1'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse'
@@ -390,22 +390,22 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             </div>
 
             {/* Visitante */}
-            <div className="col-span-3 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
+            <div className="col-span-4 flex flex-col items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center p-2 shadow-lg shrink-0 aspect-square overflow-hidden">
                 {escudoVisitante ? (
                   <img
                     src={escudoVisitante}
                     alt={equipoVisitante}
-                    className="w-10 h-10 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
+                    className="w-9 h-9 sm:w-12 sm:h-12 object-contain aspect-square select-none shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : (
-                  <Shield className="w-7 h-7 text-slate-500 shrink-0" />
+                  <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-slate-500 shrink-0" />
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight">
+              <h3 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-tight px-1">
                 {equipoVisitante}
               </h3>
             </div>

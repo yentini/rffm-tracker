@@ -976,6 +976,19 @@ class RFEFClient:
                     f"No se encontró información del jugador con código {codjugador}"
                 )
 
+            # Si se solicitó una temporada específica, verificar que la RFFM no haya devuelto otra por fallback
+            if temporada and str(temporada).strip():
+                req_temp = str(temporada).strip()
+                ret_temp = str(p_raw.get("codigo_temporada") or "").strip()
+                if ret_temp and ret_temp != req_temp:
+                    raise RFEFClientError(
+                        f"No hay datos registrados en la RFFM para la temporada {req_temp}."
+                    )
+                if not p_raw.get("equipo") and not p_raw.get("competiciones_participa"):
+                    raise RFEFClientError(
+                        f"Sin historial de equipo ni competiciones para la temporada {req_temp}."
+                    )
+
             escudo_url = fix_escudo_url(p_raw.get("escudo_equipo"))
             foto_url = fix_escudo_url(p_raw.get("foto"))
 

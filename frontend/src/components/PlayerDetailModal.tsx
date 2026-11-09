@@ -40,6 +40,8 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const [selectedTemporada, setSelectedTemporada] = useState<string | null>(null);
   const [isSeasonLoading, setIsSeasonLoading] = useState<boolean>(false);
   const [seasonCache, setSeasonCache] = useState<Record<string, PlayerDetail>>({});
+  const [emptySeasonIds, setEmptySeasonIds] = useState<Record<string, boolean>>({});
+  const [seasonNotice, setSeasonNotice] = useState<string | null>(null);
 
   // Sincronizar datos iniciales cuando cambia la prop playerDetail
   useEffect(() => {
@@ -75,6 +77,12 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   // Cambiar de temporada consultando el histórico
   const handleSelectTemporada = async (codigoTemporada: string) => {
     if (!data || isSeasonLoading || codigoTemporada === selectedTemporada) return;
+    setSeasonNotice(null);
+
+    if (emptySeasonIds[codigoTemporada]) {
+      setSeasonNotice('No existen datos ni partidos registrados para esta temporada.');
+      return;
+    }
 
     if (seasonCache[codigoTemporada]) {
       setCurrentData(seasonCache[codigoTemporada]);
@@ -85,11 +93,28 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     setIsSeasonLoading(true);
     try {
       const seasonData = await fetchPlayerDetail(data.codigo_jugador, codigoTemporada);
+
+      // Si la RFFM devolvió otra temporada (fallback por no tener datos) o no tiene equipo ni competiciones
+      const isMismatched =
+        seasonData.codigo_temporada &&
+        String(seasonData.codigo_temporada).trim() !== String(codigoTemporada).trim();
+      const hasNoStats =
+        !seasonData.equipo &&
+        (!seasonData.competiciones_participa || seasonData.competiciones_participa.length === 0);
+
+      if (isMismatched || hasNoStats) {
+        setEmptySeasonIds((prev) => ({ ...prev, [codigoTemporada]: true }));
+        setSeasonNotice('No existen datos registrados para esta temporada en la RFFM.');
+        return;
+      }
+
       setCurrentData(seasonData);
       setSelectedTemporada(codigoTemporada);
       setSeasonCache((prev) => ({ ...prev, [codigoTemporada]: seasonData }));
     } catch (err) {
-      console.error('Error al consultar temporada del jugador:', err);
+      console.warn('Sin datos para temporada del jugador:', err);
+      setEmptySeasonIds((prev) => ({ ...prev, [codigoTemporada]: true }));
+      setSeasonNotice('No existen datos registrados para esta temporada en la RFFM.');
     } finally {
       setIsSeasonLoading(false);
     }
@@ -204,9 +229,6 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                   <h2 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                     {data.nombre_jugador}
                   </h2>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0 font-bold">
-                    ID: #{data.codigo_jugador}
-                  </span>
                   {isSeasonLoading && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 animate-pulse">
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -546,11 +568,19 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                       )}
                     </div>
 
+                    {seasonNotice && (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-300 flex items-center gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>{seasonNotice}</span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {data.listado_temporadas.map((temp, idx) => {
                         const isSelected =
                           selectedTemporada === temp.codigo_temporada ||
                           data.codigo_temporada === temp.codigo_temporada;
+                        const hasNoData = emptySeasonIds[temp.codigo_temporada];
 
                         return (
                           <button
@@ -560,16 +590,18 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                             disabled={isSeasonLoading}
                             className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 cursor-pointer ${isSelected
                                 ? 'bg-blue-600/20 border-blue-500 shadow-md shadow-blue-950/40 ring-1 ring-blue-500/50'
-                                : 'bg-slate-900/70 border-slate-800/60 hover:border-slate-600 hover:bg-slate-800/60'
+                                : hasNoData
+                                  ? 'bg-slate-950/40 border-slate-800/40 opacity-70 cursor-not-allowed'
+                                  : 'bg-slate-900/70 border-slate-800/60 hover:border-slate-600 hover:bg-slate-800/60'
                               }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <div className="flex items-center gap-2">
                                 <Calendar
-                                  className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-slate-400'
+                                  className={`w-4 h-4 ${isSelected ? 'text-blue-400' : hasNoData ? 'text-slate-600' : 'text-slate-400'
                                     }`}
                                 />
-                                <span className="text-xs font-bold text-white">
+                                <span className={`text-xs font-bold ${hasNoData ? 'text-slate-400' : 'text-white'}`}>
                                   {temp.nombre_temporada}
                                 </span>
                               </div>
@@ -577,6 +609,10 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                   <CheckCircle2 className="w-3 h-3" />
                                   <span>Activa</span>
+                                </span>
+                              ) : hasNoData ? (
+                                <span className="text-[10px] text-slate-500 font-medium italic">
+                                  Sin datos
                                 </span>
                               ) : (
                                 <div className="flex items-center gap-1 text-[10px] font-medium text-slate-400 group-hover:text-blue-400">

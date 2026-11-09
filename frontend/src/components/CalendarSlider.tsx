@@ -232,10 +232,10 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                     : 'border border-slate-800 hover:border-red-500/50'
                 }`}
               >
-                {/* Cabecera de la Tarjeta: Jornada en grande, condición Casa/Fuera, Resultado y Fecha/Campo */}
+                {/* Cabecera de la Tarjeta: Jornada en grande, Resultado y Fecha/Campo */}
                 <div className="pb-2.5 border-b border-slate-800/80 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    {/* Número de Jornada y Casa/Fuera bien visibles y destacados */}
+                    {/* Número de Jornada y Distintivo de Jornada Actual */}
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="inline-flex items-center font-black text-xs sm:text-sm tracking-wider uppercase text-white bg-gradient-to-r from-red-600 to-rose-600 px-3 py-1 rounded-xl shadow-md shadow-red-950/40 border border-red-500/40">
                         Jornada {partido.numeroJornada}
@@ -246,13 +246,6 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                           <span>Actual</span>
                         </span>
                       )}
-                      <span className={`text-[10px] sm:text-[11px] font-extrabold px-2 sm:px-2.5 py-1 rounded-xl border uppercase tracking-wider ${
-                        isSelectedLocal
-                          ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                          : 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                      }`}>
-                        {isSelectedLocal ? 'En casa' : 'Fuera'}
-                      </span>
                     </div>
 
                     {/* Estado del resultado para el equipo seleccionado */}

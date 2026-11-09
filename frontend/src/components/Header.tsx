@@ -63,10 +63,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
                     </div>
                   </div>
-                  <p className="text-[11px] text-emerald-400 flex items-center gap-1.5 mb-2.5">
-                    <Cloud className="w-3.5 h-3.5 shrink-0" />
-                    Favoritos sincronizados en cuenta
-                  </p>
                   {onLogout && (
                     <button
                       type="button"
