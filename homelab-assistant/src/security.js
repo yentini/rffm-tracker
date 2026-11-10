@@ -16,13 +16,15 @@ function normalizePhoneNumber(jidOrPhone) {
 /**
  * Checks whether an incoming sender JID is strictly allowed.
  * Only the registered owner's 1-on-1 self-chat is allowed.
+ * Supports both standard phone JID (@s.whatsapp.net) and modern WhatsApp LID (@lid).
  * All groups, broadcasts, channels and external contacts are forbidden.
  * 
- * @param {string} senderJid - e.g. "34630520210@s.whatsapp.net" or "xxx@g.us"
+ * @param {string} senderJid - e.g. "34630520210@s.whatsapp.net" or "144456980381736@lid"
  * @param {string} ownerJidOrPhone - e.g. "34630520210:4@s.whatsapp.net"
+ * @param {string} [ownerLid] - e.g. "144456980381736:4@lid"
  * @returns {boolean} True if and only if it is the owner's self-chat.
  */
-function isAllowedSelfChatSender(senderJid, ownerJidOrPhone) {
+function isAllowedSelfChatSender(senderJid, ownerJidOrPhone, ownerLid) {
   if (!senderJid || typeof senderJid !== 'string') return false;
 
   // Never allow groups, broadcasts or newsletters
@@ -34,12 +36,17 @@ function isAllowedSelfChatSender(senderJid, ownerJidOrPhone) {
     return false;
   }
 
-  const senderPhone = normalizePhoneNumber(senderJid);
+  const senderId = normalizePhoneNumber(senderJid);
   const ownerPhone = normalizePhoneNumber(ownerJidOrPhone);
+  const ownerLidId = normalizePhoneNumber(ownerLid);
 
-  if (!senderPhone || !ownerPhone) return false;
+  if (!senderId) return false;
 
-  return senderPhone === ownerPhone;
+  // Allow if sender matches owner's phone or owner's LID
+  if (ownerPhone && senderId === ownerPhone) return true;
+  if (ownerLidId && senderId === ownerLidId) return true;
+
+  return false;
 }
 
 /**

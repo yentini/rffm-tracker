@@ -9,35 +9,35 @@ const {
 test('normalizePhoneNumber extracts digits correctly', () => {
   assert.equal(normalizePhoneNumber('34630520210@s.whatsapp.net'), '34630520210');
   assert.equal(normalizePhoneNumber('34630520210:4@s.whatsapp.net'), '34630520210');
+  assert.equal(normalizePhoneNumber('144456980381736:4@lid'), '144456980381736');
   assert.equal(normalizePhoneNumber('+34 630 52 02 10'), '34630520210');
   assert.equal(normalizePhoneNumber(''), '');
   assert.equal(normalizePhoneNumber(null), '');
 });
 
-test('isAllowedSelfChatSender blocks all groups, broadcasts and external contacts', () => {
+test('isAllowedSelfChatSender blocks groups, broadcasts and external contacts', () => {
   const owner = '34630520210:4@s.whatsapp.net';
+  const ownerLid = '144456980381736:4@lid';
 
   // 1. WhatsApp Groups must ALWAYS be blocked
-  assert.equal(isAllowedSelfChatSender('34630520210-1579770778@g.us', owner), false);
-  assert.equal(isAllowedSelfChatSender('1203630234567890@g.us', owner), false);
+  assert.equal(isAllowedSelfChatSender('34630520210-1579770778@g.us', owner, ownerLid), false);
+  assert.equal(isAllowedSelfChatSender('1203630234567890@g.us', owner, ownerLid), false);
 
   // 2. Broadcasts and newsletters must ALWAYS be blocked
-  assert.equal(isAllowedSelfChatSender('status@broadcast', owner), false);
-  assert.equal(isAllowedSelfChatSender('1203630234567890@newsletter', owner), false);
+  assert.equal(isAllowedSelfChatSender('status@broadcast', owner, ownerLid), false);
+  assert.equal(isAllowedSelfChatSender('1203630234567890@newsletter', owner, ownerLid), false);
 
-  // 3. Other contacts must ALWAYS be blocked
-  assert.equal(isAllowedSelfChatSender('34600112233@s.whatsapp.net', owner), false);
-  assert.equal(isAllowedSelfChatSender('34699887766@s.whatsapp.net', owner), false);
+  // 3. Other contacts (phone or foreign LID) must ALWAYS be blocked
+  assert.equal(isAllowedSelfChatSender('34600112233@s.whatsapp.net', owner, ownerLid), false);
+  assert.equal(isAllowedSelfChatSender('999999999999999@lid', owner, ownerLid), false);
 
-  // 4. Invalid / empty JIDs must be blocked
-  assert.equal(isAllowedSelfChatSender(null, owner), false);
-  assert.equal(isAllowedSelfChatSender('', owner), false);
-  assert.equal(isAllowedSelfChatSender('invalid-jid', owner), false);
+  // 4. Owner self-chat via phone JID MUST be allowed
+  assert.equal(isAllowedSelfChatSender('34630520210@s.whatsapp.net', owner, ownerLid), true);
+  assert.equal(isAllowedSelfChatSender('34630520210:0@s.whatsapp.net', owner, ownerLid), true);
 
-  // 5. Self-chat (owner's private chat) MUST be allowed
-  assert.equal(isAllowedSelfChatSender('34630520210@s.whatsapp.net', owner), true);
-  assert.equal(isAllowedSelfChatSender('34630520210:0@s.whatsapp.net', owner), true);
-  assert.equal(isAllowedSelfChatSender('34630520210:4@s.whatsapp.net', owner), true);
+  // 5. Owner self-chat via modern WhatsApp LID MUST be allowed
+  assert.equal(isAllowedSelfChatSender('144456980381736@lid', owner, ownerLid), true);
+  assert.equal(isAllowedSelfChatSender('144456980381736:0@lid', owner, ownerLid), true);
 });
 
 test('isBotSelfEchoText detects bot messages to prevent loops', () => {

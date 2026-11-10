@@ -26,6 +26,21 @@ if (!fs.existsSync(AUTH_DIR)) {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 }
 
+function clearAuthDir() {
+  if (!fs.existsSync(AUTH_DIR)) {
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    return;
+  }
+  const files = fs.readdirSync(AUTH_DIR);
+  for (const file of files) {
+    try {
+      fs.rmSync(path.join(AUTH_DIR, file), { recursive: true, force: true });
+    } catch (e) {
+      console.error(`[Auth] Error borrando archivo ${file}:`, e.message);
+    }
+  }
+}
+
 let qrCodeData = null;
 let connectionStatus = 'Iniciando...';
 let connectedUser = null;
@@ -149,24 +164,31 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API endpoint to reset auth and generate new QR
-app.post('/api/reset', (req, res) => {
+// Helper handler for resetting session cleanly
+function handleReset(req, res) {
   try {
     if (sock) {
       try { sock.end(new Error('Reset requested')); } catch (e) {}
       sock = null;
     }
-    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    clearAuthDir();
     qrCodeData = null;
     connectedUser = null;
-    connectionStatus = 'Reiniciando sesión...';
+    connectionStatus = 'Sesión reseteada. Generando nuevo QR...';
     setTimeout(startWhatsApp, 1500);
-    res.json({ status: 'ok', message: 'Sesión reiniciada. Recarga para ver el nuevo QR.' });
+    if (req.method === 'GET') {
+      res.redirect('/');
+    } else {
+      res.json({ status: 'ok', message: 'Sesión reiniciada limpiamente. Recarga para escanear.' });
+    }
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
-});
+}
+
+// Reset endpoints (both GET for browser click and POST for API)
+app.get('/reset', handleReset);
+app.post('/api/reset', handleReset);
 
 // Direct test endpoint
 app.post('/api/ask', async (req, res) => {
@@ -210,12 +232,7 @@ async function startWhatsApp() {
 
       if (isLoggedOut) {
         console.log('[WhatsApp] Sesión cerrada remotamente (logged out). Limpiando credenciales antiguas...');
-        try {
-          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-          fs.mkdirSync(AUTH_DIR, { recursive: true });
-        } catch (e) {
-          console.error('[WhatsApp] Error al limpiar AUTH_DIR:', e);
-        }
+        clearAuthDir();
         // Reiniciar para generar un nuevo código QR limpio
         setTimeout(startWhatsApp, 2000);
       } else if (shouldReconnect) {
@@ -276,7 +293,8 @@ async function startWhatsApp() {
       // NUNCA responder a canales (@newsletter) o listas de difusión (@broadcast).
       // =========================================================================
       const myJid = sock.user?.id || sock.authState?.creds?.me?.id || '';
-      if (!isAllowedSelfChatSender(sender, myJid)) {
+      const myLid = sock.user?.lid || sock.authState?.creds?.me?.lid || '';
+      if (!isAllowedSelfChatSender(sender, myJid, myLid)) {
         continue;
       }
 
@@ -290,9 +308,8 @@ async function startWhatsApp() {
 
       console.log(`[WhatsApp Seguro] Mensaje en chat personal recibido: "${cleanText}"`);
 
-      // Destinatario estrictamente el chat propio del usuario
-      const myPhone = normalizePhoneNumber(myJid);
-      const targetJid = `${myPhone}@s.whatsapp.net`;
+      // Destinatario: responder exactamente en la misma conversación activa (JID o LID)
+      const targetJid = sender;
 
       // Mostrar estado "escribiendo..." en WhatsApp
       await sock.sendPresenceUpdate('composing', targetJid);
