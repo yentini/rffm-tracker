@@ -149,6 +149,25 @@ app.get('/health', (req, res) => {
   });
 });
 
+// API endpoint to reset auth and generate new QR
+app.post('/api/reset', (req, res) => {
+  try {
+    if (sock) {
+      try { sock.end(new Error('Reset requested')); } catch (e) {}
+      sock = null;
+    }
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+    qrCodeData = null;
+    connectedUser = null;
+    connectionStatus = 'Reiniciando sesión...';
+    setTimeout(startWhatsApp, 1500);
+    res.json({ status: 'ok', message: 'Sesión reiniciada. Recarga para ver el nuevo QR.' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // Direct test endpoint
 app.post('/api/ask', async (req, res) => {
   const query = req.body.query || '¿Cómo va todo en el servidor?';
@@ -182,12 +201,24 @@ async function startWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+      const shouldReconnect = !isLoggedOut;
       connectionStatus = `Desconectado (${statusCode || 'reintentando'})`;
       connectedUser = null;
-      console.log(`[WhatsApp] Conexión cerrada. ¿Reconectar?: ${shouldReconnect}`);
+      qrCodeData = null;
+      console.log(`[WhatsApp] Conexión cerrada (status ${statusCode}). ¿Reconectar?: ${shouldReconnect}`);
 
-      if (shouldReconnect) {
+      if (isLoggedOut) {
+        console.log('[WhatsApp] Sesión cerrada remotamente (logged out). Limpiando credenciales antiguas...');
+        try {
+          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+          fs.mkdirSync(AUTH_DIR, { recursive: true });
+        } catch (e) {
+          console.error('[WhatsApp] Error al limpiar AUTH_DIR:', e);
+        }
+        // Reiniciar para generar un nuevo código QR limpio
+        setTimeout(startWhatsApp, 2000);
+      } else if (shouldReconnect) {
         setTimeout(startWhatsApp, 3000);
       }
     } else if (connection === 'open') {
