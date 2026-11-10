@@ -64,7 +64,8 @@ function isBotSelfEchoText(text) {
     trimmed.startsWith('📊 *ESTADO') ||
     trimmed.startsWith('✅ *AUDITORÍA') ||
     trimmed.startsWith('⚠️ *ERRORES') ||
-    trimmed.startsWith('🤖 *ASISTENTE')
+    trimmed.startsWith('🤖 *ASISTENTE') ||
+    trimmed.startsWith('📋 *INFORME DIARIO')
   );
 }
 

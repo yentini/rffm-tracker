@@ -16,6 +16,7 @@ const {
 
 const { buildServerAuditContext, getContainersStatus, getErrorsSummary } = require('./server_monitor');
 const { askOllama } = require('./ollama_client');
+const { generateDailyReport, initDailyReportScheduler } = require('./daily_reporter');
 const { isAllowedSelfChatSender, isBotSelfEchoText, normalizePhoneNumber } = require('./security');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
@@ -331,11 +332,14 @@ async function startWhatsApp() {
             reply = `⚠️ *ERRORES RECIENTES EN LOGS*\n\n` +
               errors.map((e) => `*${e.app}* (${e.errorCount} incidencias):\n${e.recentSamples.map((s) => `• \`${s.slice(0, 100)}\``).join('\n')}`).join('\n\n');
           }
+        } else if (cleanText.toLowerCase() === '!informe' || cleanText.toLowerCase() === '!report') {
+          reply = await generateDailyReport();
         } else if (cleanText.toLowerCase() === '!ayuda' || cleanText.toLowerCase() === '!help') {
           reply = `🤖 *ASISTENTE INTELIGENTE HOMELAB*\n\n` +
             `Puedes preguntarme lo que quieras en lenguaje natural o usar estos comandos rápidos:\n` +
             `• *!status*: Lista contenedores activos y parados.\n` +
             `• *!logs*: Resumen de errores recientes en RFFM y CAVA.\n` +
+            `• *!informe*: Genera el análisis e informe diario con IA ahora mismo.\n` +
             `• *Preguntas libres*: Escríbeme "¿cómo va el servidor?", "¿hay algún problema con la base de datos?", etc.`;
         } else {
           // Consulta inteligente a Ollama con contexto de logs y contenedores
@@ -384,5 +388,15 @@ function extractMessageText(msg) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[HTTP] Panel de vinculación QR corriendo en http://0.0.0.0:${PORT}`);
   startWhatsApp().catch((err) => console.error('[WhatsApp Init Error]', err));
+
+  // Iniciar programador de informe diario
+  initDailyReportScheduler(
+    () => sock,
+    () => {
+      const myPhone = normalizePhoneNumber(sock?.user?.id || sock?.authState?.creds?.me?.id);
+      return myPhone ? `${myPhone}@s.whatsapp.net` : null;
+    },
+    recordSentMsg
+  );
 });
 
