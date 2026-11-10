@@ -16,6 +16,7 @@ const {
 
 const { buildServerAuditContext, getContainersStatus, getErrorsSummary } = require('./server_monitor');
 const { askOllama } = require('./ollama_client');
+const { isAllowedSelfChatSender, isBotSelfEchoText, normalizePhoneNumber } = require('./security');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
 const AUTH_DIR = process.env.AUTH_DIR || path.join(__dirname, '../auth_info');
@@ -232,27 +233,35 @@ async function startWhatsApp() {
       }
 
       const sender = msg.key.remoteJid;
-      if (!sender || sender.endsWith('@broadcast') || sender.endsWith('@newsletter')) continue;
+      if (!sender) continue;
 
+      // =========================================================================
+      // REGLA CRÍTICA DE SEGURIDAD (Zero-Leakage):
+      // El asistente SOLO y EXCLUSIVAMENTE responderá en el chat personal del
+      // propio usuario consigo mismo (self-chat / "Mensajes guardados" / "Tú").
+      //
+      // NUNCA responder a ningún grupo (@g.us).
+      // NUNCA responder a ningún contacto externo.
+      // NUNCA responder a canales (@newsletter) o listas de difusión (@broadcast).
+      // =========================================================================
       const myJid = sock.user?.id || sock.authState?.creds?.me?.id || '';
-      const myPhone = myJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-      const senderPhone = sender.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-
-      const isSelfChat = Boolean(myPhone && senderPhone && myPhone === senderPhone);
-      const isGroup = sender.endsWith('@g.us');
+      if (!isAllowedSelfChatSender(sender, myJid)) {
+        continue;
+      }
 
       const cleanText = extractMessageText(msg).trim();
       if (!cleanText) continue;
 
-      const isExplicitCommand = cleanText.startsWith('!') || cleanText.toLowerCase().startsWith('bot');
-      const shouldProcess = isSelfChat || !msg.key.fromMe || isExplicitCommand;
+      // Salvaguarda adicional anti-bucle: ignorar mensajes generados por el bot
+      if (isBotSelfEchoText(cleanText)) {
+        continue;
+      }
 
-      console.log(`[WhatsApp Msg] from=${sender} (fromMe=${msg.key.fromMe}, isSelf=${isSelfChat}, isGroup=${isGroup}, shouldProcess=${shouldProcess}): "${cleanText}"`);
+      console.log(`[WhatsApp Seguro] Mensaje en chat personal recibido: "${cleanText}"`);
 
-      if (!shouldProcess) continue;
-
-      // Determinar destinatario normalizado (para self-chat, enviar a número directo sin sufijo de dispositivo)
-      const targetJid = isSelfChat && myPhone ? `${myPhone}@s.whatsapp.net` : sender;
+      // Destinatario estrictamente el chat propio del usuario
+      const myPhone = normalizePhoneNumber(myJid);
+      const targetJid = `${myPhone}@s.whatsapp.net`;
 
       // Mostrar estado "escribiendo..." en WhatsApp
       await sock.sendPresenceUpdate('composing', targetJid);
@@ -283,7 +292,8 @@ async function startWhatsApp() {
         } else {
           // Consulta inteligente a Ollama con contexto de logs y contenedores
           const { summary } = await buildServerAuditContext();
-          reply = await askOllama(cleanText, summary);
+          const ollamaAnswer = await askOllama(cleanText, summary);
+          reply = `🍓 *[Homelab AI]*\n\n${ollamaAnswer}`;
         }
 
         const sent = await sock.sendMessage(targetJid, { text: reply });
