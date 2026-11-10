@@ -856,6 +856,10 @@ class RFEFClient:
             team_raw = page_props.get("team", {})
 
             if not team_raw:
+                logger.info(
+                    "Ficha de equipo no encontrada o vacía en la RFFM para el código %s",
+                    codficha,
+                )
                 raise RFEFClientError(
                     f"No se encontró información del equipo con código {codficha}"
                 )
@@ -941,6 +945,8 @@ class RFEFClient:
                 delegados=delegados,
                 equipaciones=equipaciones,
             )
+        except RFEFClientError:
+            raise
         except Exception as error:
             logger.error("Error al obtener ficha de equipo de la RFFM: %s", error)
             raise RFEFClientError(
