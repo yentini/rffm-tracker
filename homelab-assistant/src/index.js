@@ -441,12 +441,4 @@ app.listen(PORT, '0.0.0.0', () => {
     (key, msg) => messageStore.saveMessage(key, msg)
   );
 });
-    () => sock,
-    () => {
-      const myPhone = normalizePhoneNumber(sock?.user?.id || sock?.authState?.creds?.me?.id);
-      return myPhone ? `${myPhone}@s.whatsapp.net` : null;
-    },
-    recordSentMsg
-  );
-});
 
