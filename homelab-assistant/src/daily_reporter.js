@@ -30,8 +30,9 @@ Estructura la respuesta de forma clara y atractiva para WhatsApp:
  * @param {Function} getSocket
  * @param {Function} getTargetJid
  * @param {Function} recordSentMsg
+ * @param {Function} [saveMessage]
  */
-function initDailyReportScheduler(getSocket, getTargetJid, recordSentMsg) {
+function initDailyReportScheduler(getSocket, getTargetJid, recordSentMsg, saveMessage) {
   let lastSentDate = null;
 
   setInterval(async () => {
@@ -54,6 +55,9 @@ function initDailyReportScheduler(getSocket, getTargetJid, recordSentMsg) {
       try {
         const report = await generateDailyReport();
         const sent = await sock.sendMessage(targetJid, { text: report });
+        if (sent?.key && sent?.message && saveMessage) {
+          saveMessage(sent.key, sent.message);
+        }
         if (sent?.key?.id && recordSentMsg) {
           recordSentMsg(sent.key.id);
         }

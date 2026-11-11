@@ -18,6 +18,7 @@ const { buildServerAuditContext, getContainersStatus, getErrorsSummary } = requi
 const { askOllama } = require('./ollama_client');
 const { generateDailyReport, initDailyReportScheduler } = require('./daily_reporter');
 const { isAllowedSelfChatSender, isBotSelfEchoText, normalizePhoneNumber } = require('./security');
+const { MessageRetryCache, messageStore } = require('./message_store');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
 const AUTH_DIR = process.env.AUTH_DIR || path.join(__dirname, '../auth_info');
@@ -41,6 +42,9 @@ function clearAuthDir() {
     }
   }
 }
+
+// Global retry counter cache must persist across socket reconnections
+const msgRetryCounterCache = new MessageRetryCache();
 
 let qrCodeData = null;
 let connectionStatus = 'Iniciando...';
@@ -165,6 +169,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Direct QR code endpoint (useful for remote monitoring or artifact rendering)
+app.get('/api/qr', (req, res) => {
+  res.json({
+    hasQr: Boolean(qrCodeData),
+    qr: qrCodeData,
+    status: connectionStatus,
+    user: connectedUser
+  });
+});
+
 // Helper handler for resetting session cleanly
 function handleReset(req, res) {
   try {
@@ -173,6 +187,8 @@ function handleReset(req, res) {
       sock = null;
     }
     clearAuthDir();
+    messageStore.clear();
+    msgRetryCounterCache.flushAll();
     qrCodeData = null;
     connectedUser = null;
     connectionStatus = 'Sesión reseteada. Generando nuevo QR...';
@@ -211,7 +227,11 @@ async function startWhatsApp() {
     browser: ['Homelab-Pi5', 'Chrome', '120.0.0'],
     syncFullHistory: false,
     markOnlineOnConnect: true,
-    generateHighQualityLinkPreview: false
+    generateHighQualityLinkPreview: false,
+    msgRetryCounterCache,
+    getMessage: async (key) => {
+      return messageStore.getMessage(key);
+    }
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -261,6 +281,9 @@ async function startWhatsApp() {
               `• *!logs* (ver errores recientes)\n` +
               `• O pregúntame: *¿cómo va el servidor?*`;
             const sent = await sock.sendMessage(welcomeJid, { text: welcomeMsg });
+            if (sent?.key && sent?.message) {
+              messageStore.saveMessage(sent.key, sent.message);
+            }
             if (sent?.key?.id) recordSentMsg(sent.key.id);
             console.log(`[WhatsApp] Mensaje de bienvenida enviado con éxito a ${welcomeJid}`);
           }
@@ -277,6 +300,11 @@ async function startWhatsApp() {
 
     for (const msg of m.messages) {
       if (!msg || !msg.message) continue;
+
+      // Guardar todos los mensajes recibidos para satisfacer solicitudes de reintento criptográfico
+      if (msg.key) {
+        messageStore.saveMessage(msg.key, msg.message);
+      }
 
       // Si el mensaje fue enviado por el bot, ignorar para evitar bucles
       if (sentByBotMsgIds.has(msg.key.id)) {
@@ -354,7 +382,10 @@ async function startWhatsApp() {
         }
 
         console.log(`[WhatsApp Enviando] Destino: ${targetJid}, contenido (${reply.length} chars)`);
-        const sent = await sock.sendMessage(targetJid, { text: reply });
+        const sent = await sock.sendMessage(targetJid, { text: reply }, { quoted: msg });
+        if (sent?.key && sent?.message) {
+          messageStore.saveMessage(sent.key, sent.message);
+        }
         if (sent?.key?.id) {
           recordSentMsg(sent.key.id);
         }
@@ -363,7 +394,10 @@ async function startWhatsApp() {
         console.error('[WhatsApp Error al responder]:', err);
         const sentErr = await sock.sendMessage(targetJid, {
           text: `⚠️ Ocurrió un error al procesar tu solicitud: ${err.message}`
-        });
+        }, { quoted: msg });
+        if (sentErr?.key && sentErr?.message) {
+          messageStore.saveMessage(sentErr.key, sentErr.message);
+        }
         if (sentErr?.key?.id) {
           recordSentMsg(sentErr.key.id);
         }
@@ -398,6 +432,15 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Iniciar programador de informe diario
   initDailyReportScheduler(
+    () => sock,
+    () => {
+      const myPhone = normalizePhoneNumber(sock?.user?.id || sock?.authState?.creds?.me?.id);
+      return myPhone ? `${myPhone}@s.whatsapp.net` : null;
+    },
+    recordSentMsg,
+    (key, msg) => messageStore.saveMessage(key, msg)
+  );
+});
     () => sock,
     () => {
       const myPhone = normalizePhoneNumber(sock?.user?.id || sock?.authState?.creds?.me?.id);
