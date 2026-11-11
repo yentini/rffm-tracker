@@ -208,7 +208,10 @@ async function startWhatsApp() {
   sock = makeWASocket({
     auth: state,
     logger: pino({ level: 'silent' }),
-    browser: ['Homelab-Pi5', 'Chrome', '120.0.0']
+    browser: ['Homelab-Pi5', 'Chrome', '120.0.0'],
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
+    generateHighQualityLinkPreview: false
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -309,8 +312,10 @@ async function startWhatsApp() {
 
       console.log(`[WhatsApp Seguro] Mensaje en chat personal recibido: "${cleanText}"`);
 
-      // Destinatario: responder exactamente en la misma conversación activa (JID o LID)
-      const targetJid = sender;
+      // Destinatario: en WhatsApp los mensajes salientes hacia uno mismo deben dirigirse
+      // al JID telefónico (@s.whatsapp.net), ya que WhatsApp rechaza envíos salientes directos a direcciones @lid
+      const myPhone = normalizePhoneNumber(myJid);
+      const targetJid = myPhone ? `${myPhone}@s.whatsapp.net` : sender;
 
       // Mostrar estado "escribiendo..." en WhatsApp
       await sock.sendPresenceUpdate('composing', targetJid);
@@ -348,12 +353,14 @@ async function startWhatsApp() {
           reply = `🍓 *[Homelab AI]*\n\n${ollamaAnswer}`;
         }
 
+        console.log(`[WhatsApp Enviando] Destino: ${targetJid}, contenido (${reply.length} chars)`);
         const sent = await sock.sendMessage(targetJid, { text: reply });
         if (sent?.key?.id) {
           recordSentMsg(sent.key.id);
         }
+        console.log(`[WhatsApp Enviado con éxito] ID: ${sent?.key?.id || 'ok'}`);
       } catch (err) {
-        console.error('[WhatsApp] Error al procesar mensaje:', err);
+        console.error('[WhatsApp Error al responder]:', err);
         const sentErr = await sock.sendMessage(targetJid, {
           text: `⚠️ Ocurrió un error al procesar tu solicitud: ${err.message}`
         });

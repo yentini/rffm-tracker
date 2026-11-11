@@ -13,25 +13,23 @@ const MONITORED_APPS = [
   { name: 'CAVA Frontend', id: 'byaCBRg0DfPS6HnQnpaQx' }
 ];
 
-async function fetchDokploy(endpoint, method = 'GET', body = null) {
-  const url = `${DOKPLOY_URL.replace(/\/$/, '')}/api/${endpoint}`;
+async function fetchDokployTrpc(procedure, inputObj = {}) {
+  const encodedInput = encodeURIComponent(JSON.stringify({ json: inputObj }));
+  const url = `${DOKPLOY_URL.replace(/\/$/, '')}/api/trpc/${procedure}?input=${encodedInput}`;
   const options = {
-    method,
+    method: 'GET',
     headers: {
       'x-api-key': DOKPLOY_API_KEY,
-      'Content-Type': 'application/json',
       'Accept': 'application/json'
     }
   };
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
 
   const res = await fetch(url, options);
   if (!res.ok) {
-    throw new Error(`Dokploy API ${endpoint} failed: HTTP ${res.status}`);
+    throw new Error(`Dokploy tRPC ${procedure} failed: HTTP ${res.status}`);
   }
-  return await res.json();
+  const data = await res.json();
+  return data?.result?.data?.json;
 }
 
 /**
@@ -39,7 +37,7 @@ async function fetchDokploy(endpoint, method = 'GET', body = null) {
  */
 async function getContainersStatus() {
   try {
-    const containers = await fetchDokploy('docker.getContainers');
+    const containers = (await fetchDokployTrpc('docker.getContainers', {})) || [];
     const running = [];
     const exited = [];
 
@@ -70,8 +68,8 @@ async function getErrorsSummary() {
 
   for (const app of MONITORED_APPS) {
     try {
-      const logsRaw = await fetchDokploy(`application.readLogs?applicationId=${app.id}`);
-      const logsText = typeof logsRaw === 'string' ? logsRaw : JSON.stringify(logsRaw);
+      const logsRaw = await fetchDokployTrpc('application.readLogs', { applicationId: app.id });
+      const logsText = typeof logsRaw === 'string' ? logsRaw : JSON.stringify(logsRaw || '');
 
       // Search for error patterns
       const lines = logsText.split('\n');
@@ -79,7 +77,6 @@ async function getErrorsSummary() {
         const lower = line.toLowerCase();
         return (
           lower.includes('traceback') ||
-          lower.includes('error') ||
           lower.includes('critical') ||
           lower.includes('exception') ||
           lower.includes('502 bad gateway') ||
