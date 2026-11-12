@@ -29,6 +29,16 @@ body {
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
 }
 
+/* Sticky team header when viewing team from favorites or matches */
+.sticky-team-header {
+  position: sticky;
+  top: calc(3.5rem + max(env(safe-area-inset-top), 16px));
+  z-index: 30;
+  background-color: rgba(2, 6, 23, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;

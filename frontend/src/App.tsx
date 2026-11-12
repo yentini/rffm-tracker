@@ -12,6 +12,7 @@ import { CampoScheduleModal } from './components/CampoScheduleModal';
 import { SmartTeamSearchModal } from './components/SmartTeamSearchModal';
 import { GoleadoresModal } from './components/GoleadoresModal';
 import { AuthScreen } from './components/AuthScreen';
+import { TeamDetailModal } from './components/TeamDetailModal';
 import {
   clearAuthSession,
   enableGuestMode,
@@ -58,8 +59,9 @@ import {
   Group,
   PartidoCalendario,
   Season,
+  TeamDetail,
 } from './types';
-import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy, Flame, ArrowLeft } from 'lucide-react';
+import { WifiOff, RefreshCcw, CalendarDays, Settings, Trophy, Flame, ArrowLeft, Users } from 'lucide-react';
 
 export function App() {
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -109,6 +111,28 @@ export function App() {
   const [isOfflineWarning, setIsOfflineWarning] = useState(false);
   const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
   const [isGoleadoresModalOpen, setIsGoleadoresModalOpen] = useState(false);
+
+  // Estado para el modal de Plantilla / Ficha del Equipo
+  const [isPlantillaModalOpen, setIsPlantillaModalOpen] = useState(false);
+  const [plantillaDetail, setPlantillaDetail] = useState<TeamDetail | null>(null);
+  const [isLoadingPlantilla, setIsLoadingPlantilla] = useState(false);
+  const [plantillaError, setPlantillaError] = useState<string | null>(null);
+
+  const handleOpenPlantilla = async () => {
+    if (!selectedTeam) return;
+    setIsPlantillaModalOpen(true);
+    setIsLoadingPlantilla(true);
+    setPlantillaError(null);
+    try {
+      const detail = await fetchTeamDetail(selectedTeam);
+      setPlantillaDetail(detail);
+    } catch (err: any) {
+      console.error('Error al abrir plantilla del equipo:', err);
+      setPlantillaError(err.message || 'No se pudo cargar la plantilla y datos del equipo.');
+    } finally {
+      setIsLoadingPlantilla(false);
+    }
+  };
 
   // Referencia para asegurar que un grupo seleccionado (ej. por deducción o favorito)
   // no se sobrescriba por carreras asíncronas entre loadCompetitions y loadGroups
@@ -715,84 +739,116 @@ export function App() {
                   isLoadingGroups={isLoadingGroups}
                   isCurrentFavorite={isCurrentFavorite}
                   onToggleFavorite={handleToggleFavorite}
-                  onOpenSmartSearch={() => setIsSmartSearchOpen(true)}
+                  onSelectDeduceTeam={handleSelectDeduceTeam}
+                  favoriteTeamCodes={favorites.map((f) => f.teamId)}
+                  onToggleFavoriteFromDeduce={handleToggleFavoriteFromDeduce}
                 />
               )}
 
               {/* Sección 2: Calendario (solo se muestra cuando ya hay un grupo o equipo seleccionado) */}
               {(selectedGroup || isViewingFromFavorite) && (
                 <>
-                  <div className="space-y-2.5 sm:space-y-3 pt-1">
-                    <div className="flex flex-wrap items-center justify-between px-1 gap-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                        <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
-                        <h3
-                          onClick={() => showGroupCalendar && setShowGroupCalendar(false)}
-                          className={`text-xs font-bold uppercase tracking-wider text-slate-200 truncate ${
-                            showGroupCalendar ? 'cursor-pointer hover:text-white' : ''
-                          }`}
-                          title={showGroupCalendar ? 'Pulsar para volver a los partidos del equipo' : undefined}
-                        >
-                          {selectedTeam
-                            ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
-                               favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
-                               'Partidos del Equipo')
-                            : 'Calendario Oficial'}
-                        </h3>
-                        {calendario && (
-                          <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full shrink-0">
-                            {selectedTeam && !showGroupCalendar
-                              ? `${teamMatchesCount} Partidos`
-                              : `${calendario.total_jornadas} Jornadas`}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                        {selectedTeam && (
-                          <button
-                            type="button"
-                            onClick={() => setShowGroupCalendar((prev) => !prev)}
-                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm border ${
-                              showGroupCalendar
-                                ? 'bg-red-600 text-white border-red-500 shadow-red-950/50'
-                                : 'text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border-red-500/30'
+                  <div className="space-y-2.5 sm:space-y-3">
+                    <div
+                      className={`${
+                        isViewingFromFavorite
+                          ? 'sticky-team-header py-2.5 px-2.5 -mx-2.5 sm:-mx-4 sm:px-4 border-b border-slate-800/80 shadow-lg rounded-b-2xl'
+                          : 'pt-1'
+                      } transition-all`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between px-1 gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                          {isViewingFromFavorite && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('favoritos')}
+                              className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-400 active:scale-95 transition-all shrink-0"
+                              title="Volver a Favoritos"
+                              aria-label="Volver a Favoritos"
+                            >
+                              <ArrowLeft className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
+                          <h3
+                            onClick={() => showGroupCalendar && setShowGroupCalendar(false)}
+                            className={`text-xs font-bold uppercase tracking-wider text-slate-200 truncate ${
+                              showGroupCalendar ? 'cursor-pointer hover:text-white' : ''
                             }`}
-                            title={
-                              showGroupCalendar
-                                ? 'Volver a ver solo los partidos de este equipo'
-                                : 'Ver calendario completo del grupo por jornadas'
-                            }
+                            title={showGroupCalendar ? 'Pulsar para volver a los partidos del equipo' : undefined}
                           >
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            <span>Calendario</span>
-                          </button>
-                        )}
-                        {selectedGroup && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsClasificacionFromTeam(true);
-                              setActiveTab('clasificacion');
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
-                            title="Ver clasificación oficial de este grupo"
-                          >
-                            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Clasificación</span>
-                          </button>
-                        )}
-                        {selectedCompetition && selectedGroup && (
-                          <button
-                            type="button"
-                            onClick={() => setIsGoleadoresModalOpen(true)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
-                            title="Ver máximos goleadores del grupo"
-                          >
-                            <Flame className="w-3.5 h-3.5 text-orange-400" />
-                            <span>Goleadores</span>
-                          </button>
-                        )}
+                            {selectedTeam
+                              ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
+                                 favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
+                                 'Partidos del Equipo')
+                              : 'Calendario Oficial'}
+                          </h3>
+                          {calendario && (
+                            <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full shrink-0">
+                              {selectedTeam && !showGroupCalendar
+                                ? `${teamMatchesCount} Partidos`
+                                : `${calendario.total_jornadas} Jornadas`}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                          {selectedTeam && (
+                            <button
+                              type="button"
+                              onClick={() => setShowGroupCalendar((prev) => !prev)}
+                              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm border ${
+                                showGroupCalendar
+                                  ? 'bg-red-600 text-white border-red-500 shadow-red-950/50'
+                                  : 'text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border-red-500/30'
+                              }`}
+                              title={
+                                showGroupCalendar
+                                  ? 'Volver a ver solo los partidos de este equipo'
+                                  : 'Ver calendario completo del grupo por jornadas'
+                              }
+                            >
+                              <CalendarDays className="w-3.5 h-3.5" />
+                              <span>Calendario</span>
+                            </button>
+                          )}
+                          {selectedGroup && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsClasificacionFromTeam(true);
+                                setActiveTab('clasificacion');
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              title="Ver clasificación oficial de este grupo"
+                            >
+                              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Clasificación</span>
+                            </button>
+                          )}
+                          {selectedCompetition && selectedGroup && (
+                            <button
+                              type="button"
+                              onClick={() => setIsGoleadoresModalOpen(true)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              title="Ver máximos goleadores del grupo"
+                            >
+                              <Flame className="w-3.5 h-3.5 text-orange-400" />
+                              <span>Goleadores</span>
+                            </button>
+                          )}
+                          {selectedTeam && (
+                            <button
+                              type="button"
+                              onClick={handleOpenPlantilla}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              title="Ver plantilla y ficha del equipo"
+                            >
+                              <Users className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Plantilla</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -979,6 +1035,20 @@ export function App() {
             nombreGrupo={groups.find((g) => g.codigo === selectedGroup)?.nombre}
           />
         )}
+
+        {/* Modal de Plantilla / Ficha del Equipo */}
+        <TeamDetailModal
+          isOpen={isPlantillaModalOpen}
+          onClose={() => {
+            setIsPlantillaModalOpen(false);
+            setPlantillaDetail(null);
+            setPlantillaError(null);
+          }}
+          teamDetail={plantillaDetail}
+          isLoading={isLoadingPlantilla}
+          error={plantillaError}
+          onRetry={handleOpenPlantilla}
+        />
 
         {/* Barra de Navegación Inferior Fija */}
         <BottomNav

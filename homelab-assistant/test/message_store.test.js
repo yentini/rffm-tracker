@@ -72,3 +72,4 @@ test('MessageStore handles capacity limits cleanly', () => {
   assert.equal(store.getMessage({ id: 'm3' })?.conversation, 'three');
   assert.ok(store.size() <= 4); // with possible composite keys
 });
+
