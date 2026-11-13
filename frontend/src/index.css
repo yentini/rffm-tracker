@@ -25,6 +25,10 @@ body {
   padding-top: max(env(safe-area-inset-top), 16px);
 }
 
+.safe-main-top {
+  padding-top: calc(4.5rem + max(env(safe-area-inset-top), 16px));
+}
+
 .safe-bottom-padding {
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
 }

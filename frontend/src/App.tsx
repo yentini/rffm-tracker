@@ -668,7 +668,7 @@ export function App() {
         )}
 
         {/* Contenido principal con safe area */}
-        <main className="pt-20 sm:pt-24 px-2.5 sm:px-4 flex-1 space-y-4 sm:space-y-5">
+        <main className="safe-main-top px-2.5 sm:px-4 flex-1 space-y-4 sm:space-y-5">
           
           {/* Banner de aviso offline / fallback */}
           {isOfflineWarning && (
