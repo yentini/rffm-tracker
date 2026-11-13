@@ -81,8 +81,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
   // Pestaña activa dentro de Favoritos: Gestión de Equipos y Sedes abierta por defecto al entrar
   const [activeSubTab, setActiveSubTab] = useState<'agenda' | 'gestion'>('gestion');
 
-  // Inicialmente abierto en Equipos Favoritos
-  const [openSection, setOpenSection] = useState<'equipos' | 'sedes' | null>('equipos');
+  // Todas las secciones recogidas por defecto al entrar
+  const [openSection, setOpenSection] = useState<'equipos' | 'sedes' | null>(null);
 
   const toggleSection = (section: 'equipos' | 'sedes') => {
     setOpenSection((curr) => (curr === section ? null : section));
