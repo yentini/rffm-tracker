@@ -3,7 +3,7 @@
  */
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://192.168.1.45:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'llama3.2:1b';
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
 
 async function askOllama(userPrompt, serverContext = '') {
   const systemInstruction = `Eres Jarvis Homelab, un asistente de IA inteligente, conciso y técnico que corre localmente en una Raspberry Pi 5.
@@ -21,9 +21,11 @@ ${serverContext}
     system: systemInstruction,
     prompt: userPrompt,
     stream: false,
+    keep_alive: '60m',
     options: {
       temperature: 0.3,
-      num_predict: 250
+      num_predict: 250,
+      num_ctx: 4096
     }
   };
 
