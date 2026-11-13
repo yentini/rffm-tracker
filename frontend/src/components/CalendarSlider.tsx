@@ -488,7 +488,7 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Barra de Control y Navegación entre Jornadas (Destacada y Clara) */}
-      <div className="bg-gradient-to-br from-[#2a1218] via-[#1b1626] to-[#111827] border border-red-500/30 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl shadow-black/50 backdrop-blur-md">
+      <div className="bg-gradient-to-br from-[#521421] via-[#311322] to-[#131826] border border-red-500/45 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl shadow-black/50 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
           
           {/* Botón Jornada Anterior */}

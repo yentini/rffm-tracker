@@ -133,13 +133,13 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
       {activeSubTab === 'gestion' && (
         <div className="space-y-4 animate-in fade-in duration-200">
           {/* 1. SECCIÓN DESPLEGABLE: EQUIPOS FAVORITOS */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl shadow-black/40 backdrop-blur-md overflow-hidden transition-all">
+          <div className="bg-slate-900/90 border border-red-500/35 rounded-3xl shadow-xl shadow-black/40 backdrop-blur-md overflow-hidden transition-all">
             {/* Cabecera / Botón acordeón */}
             <button
               type="button"
               onClick={() => toggleSection('equipos')}
-              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-colors focus:outline-none ${
-                isEquiposOpen ? 'bg-slate-950/80 border-b border-slate-800' : 'hover:bg-slate-850/40'
+              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-all focus:outline-none bg-gradient-to-br from-[#521421] via-[#311322] to-[#131826] hover:from-[#5d1726] hover:via-[#391627] hover:to-[#181f31] ${
+                isEquiposOpen ? 'border-b border-red-500/40' : ''
               }`}
               aria-expanded={isEquiposOpen}
             >
@@ -204,8 +204,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           key={key}
                           className={`group rounded-2xl p-3 transition-all border ${
                             isEven
-                              ? 'bg-slate-950/60 hover:bg-slate-950/90 border-slate-800/80'
-                              : 'bg-slate-900/50 hover:bg-slate-850/70 border-slate-800/40'
+                              ? 'bg-[#0c1424] hover:bg-[#111c33] border-slate-800'
+                              : 'bg-[#162136] hover:bg-[#1c2a44] border-slate-700/80'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -285,13 +285,13 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
           </div>
 
           {/* 2. SECCIÓN DESPLEGABLE: SEDES E INSTALACIONES FAVORITAS */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl shadow-black/40 backdrop-blur-md overflow-hidden transition-all">
+          <div className="bg-slate-900/90 border border-red-500/35 rounded-3xl shadow-xl shadow-black/40 backdrop-blur-md overflow-hidden transition-all">
             {/* Cabecera / Botón acordeón */}
             <button
               type="button"
               onClick={() => toggleSection('sedes')}
-              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-colors focus:outline-none ${
-                isSedesOpen ? 'bg-slate-950/80 border-b border-slate-800' : 'hover:bg-slate-850/40'
+              className={`w-full p-4 sm:p-5 flex items-center justify-between text-left transition-all focus:outline-none bg-gradient-to-br from-[#521421] via-[#311322] to-[#131826] hover:from-[#5d1726] hover:via-[#391627] hover:to-[#181f31] ${
+                isSedesOpen ? 'border-b border-red-500/40' : ''
               }`}
               aria-expanded={isSedesOpen}
             >
@@ -361,8 +361,8 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                           onClick={() => onSelectCampo(campo)}
                           className={`group rounded-2xl p-3 sm:p-3.5 transition-all border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 cursor-pointer ${
                             isEven
-                              ? 'bg-slate-950/60 hover:bg-slate-950/90 border-slate-800/80'
-                              : 'bg-slate-900/50 hover:bg-slate-850/70 border-slate-800/40'
+                              ? 'bg-[#0c1424] hover:bg-[#111c33] border-slate-800'
+                              : 'bg-[#162136] hover:bg-[#1c2a44] border-slate-700/80'
                           }`}
                         >
                           {/* Bloque Principal: Línea 1 y Línea 2 en móvil, Izquierda en PC */}
