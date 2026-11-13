@@ -401,20 +401,6 @@ export function App() {
     return Array.from(teamMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [calendario]);
 
-  // Total de partidos del equipo actualmente filtrado
-  const teamMatchesCount = useMemo(() => {
-    if (!selectedTeam || !calendario) return 0;
-    let count = 0;
-    calendario.rounds.forEach((round) => {
-      round.partidos.forEach((p) => {
-        if (p.codigo_equipo_local === selectedTeam || p.codigo_equipo_visitante === selectedTeam) {
-          count += 1;
-        }
-      });
-    });
-    return count;
-  }, [calendario, selectedTeam]);
-
   // Manejadores de cambios manuales en selectores para limpiar niveles inferiores
   const handleSeasonChange = (seasonId: string) => {
     setSelectedSeason(seasonId);
@@ -756,13 +742,13 @@ export function App() {
                           : 'pt-1'
                       } transition-all`}
                     >
-                      <div className="flex flex-wrap items-center justify-between px-1 gap-2">
-                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-1 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           {isViewingFromFavorite && (
                             <button
                               type="button"
                               onClick={() => setActiveTab('favoritos')}
-                              className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-400 active:scale-95 transition-all shrink-0"
+                              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-amber-400 active:scale-95 transition-all shrink-0"
                               title="Volver a Favoritos"
                               aria-label="Volver a Favoritos"
                             >
@@ -770,34 +756,44 @@ export function App() {
                             </button>
                           )}
                           <CalendarDays className="w-4 h-4 text-red-500 shrink-0" />
-                          <h3
-                            onClick={() => showGroupCalendar && setShowGroupCalendar(false)}
-                            className={`text-xs font-bold uppercase tracking-wider text-slate-200 truncate ${
-                              showGroupCalendar ? 'cursor-pointer hover:text-white' : ''
-                            }`}
-                            title={showGroupCalendar ? 'Pulsar para volver a los partidos del equipo' : undefined}
-                          >
-                            {selectedTeam
-                              ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
-                                 favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
-                                 'Partidos del Equipo')
-                              : 'Calendario Oficial'}
-                          </h3>
-                          {calendario && (
-                            <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full shrink-0">
-                              {selectedTeam && !showGroupCalendar
-                                ? `${teamMatchesCount} Partidos`
-                                : `${calendario.total_jornadas} Jornadas`}
-                            </span>
-                          )}
+                          <div className="min-w-0 flex-1">
+                            <h3
+                              onClick={() => showGroupCalendar && setShowGroupCalendar(false)}
+                              className={`text-xs font-bold uppercase tracking-wider text-slate-200 truncate ${
+                                showGroupCalendar ? 'cursor-pointer hover:text-white' : ''
+                              }`}
+                              title={showGroupCalendar ? 'Pulsar para volver a los partidos del equipo' : undefined}
+                            >
+                              {selectedTeam
+                                ? (teams.find((t) => t.codigo === selectedTeam)?.nombre ||
+                                   favorites.find((f) => f.teamId === selectedTeam)?.teamName ||
+                                   'Partidos del Equipo')
+                                : 'Calendario Oficial'}
+                            </h3>
+                            {(() => {
+                              const compName =
+                                competitions.find((c) => c.codigo === selectedCompetition)?.nombre ||
+                                favorites.find((f) => f.teamId === selectedTeam)?.competitionName;
+                              const groupName =
+                                groups.find((g) => g.codigo === selectedGroup)?.nombre ||
+                                favorites.find((f) => f.teamId === selectedTeam)?.groupName;
+                              if (!compName) return null;
+                              return (
+                                <p className="text-[10px] sm:text-[11px] text-slate-400/90 truncate leading-tight mt-0.5">
+                                  {compName}
+                                  {groupName ? ` · ${groupName}` : ''}
+                                </p>
+                              );
+                            })()}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-1.5 w-full sm:w-auto sm:shrink-0">
                           {selectedTeam && (
                             <button
                               type="button"
                               onClick={() => setShowGroupCalendar((prev) => !prev)}
-                              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm border ${
+                              className={`inline-flex items-center justify-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 sm:py-1 rounded-full transition-all active:scale-95 shadow-sm border ${
                                 showGroupCalendar
                                   ? 'bg-red-600 text-white border-red-500 shadow-red-950/50'
                                   : 'text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border-red-500/30'
@@ -808,7 +804,7 @@ export function App() {
                                   : 'Ver calendario completo del grupo por jornadas'
                               }
                             >
-                              <CalendarDays className="w-3.5 h-3.5" />
+                              <CalendarDays className="w-3.5 h-3.5 shrink-0" />
                               <span>Calendario</span>
                             </button>
                           )}
@@ -819,10 +815,10 @@ export function App() {
                                 setIsClasificacionFromTeam(true);
                                 setActiveTab('clasificacion');
                               }}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1.5 sm:py-1 rounded-full transition-all active:scale-95 shadow-sm"
                               title="Ver clasificación oficial de este grupo"
                             >
-                              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                               <span>Clasificación</span>
                             </button>
                           )}
@@ -830,10 +826,10 @@ export function App() {
                             <button
                               type="button"
                               onClick={() => setIsGoleadoresModalOpen(true)}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 px-2.5 py-1.5 sm:py-1 rounded-full transition-all active:scale-95 shadow-sm"
                               title="Ver máximos goleadores del grupo"
                             >
-                              <Flame className="w-3.5 h-3.5 text-orange-400" />
+                              <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0" />
                               <span>Goleadores</span>
                             </button>
                           )}
@@ -841,10 +837,10 @@ export function App() {
                             <button
                               type="button"
                               onClick={handleOpenPlantilla}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1 rounded-full transition-all active:scale-95 shadow-sm"
+                              className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-1.5 sm:py-1 rounded-full transition-all active:scale-95 shadow-sm"
                               title="Ver plantilla y ficha del equipo"
                             >
-                              <Users className="w-3.5 h-3.5 text-emerald-400" />
+                              <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                               <span>Plantilla</span>
                             </button>
                           )}
