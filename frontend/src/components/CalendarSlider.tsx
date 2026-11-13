@@ -208,7 +208,7 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
             <p className="text-xs">No se encontraron partidos para este equipo en el calendario.</p>
           </div>
         ) : (
-          teamMatches.map((partido) => {
+          teamMatches.map((partido, idx) => {
             const hasScore = partido.goles_local !== null && partido.goles_visitante !== null;
             const isSelectedLocal = partido.codigo_equipo_local === selectedTeam;
             const isSelectedVisitante = partido.codigo_equipo_visitante === selectedTeam;
@@ -217,6 +217,10 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
               ? partido.codacta === currentMatch.codacta && partido.numeroJornada === currentMatch.numeroJornada
               : false;
             const isCurrentRound = partido.numeroJornada === currentRoundNum;
+            const alternatingBg =
+              idx % 2 === 0
+                ? 'bg-[#0c1424] hover:bg-[#111c33]'
+                : 'bg-[#162136] hover:bg-[#1c2a44]';
 
             return (
               <div
@@ -226,10 +230,12 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                 onClick={() => onSelectMatch?.(partido)}
                 role="button"
                 tabIndex={0}
-                className={`bg-slate-900/90 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-lg shadow-black/20 transition-all hover:bg-slate-900 active:scale-[0.99] space-y-3 cursor-pointer group ${
+                className={`${alternatingBg} rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-lg shadow-black/20 transition-all active:scale-[0.99] space-y-3 cursor-pointer group ${
                   isCurrentRound
                     ? 'border-2 border-emerald-500/60 ring-2 ring-emerald-500/20'
-                    : 'border border-slate-800 hover:border-red-500/50'
+                    : idx % 2 === 0
+                    ? 'border border-slate-800 hover:border-red-500/50'
+                    : 'border border-slate-700/80 hover:border-red-500/50'
                 }`}
               >
                 {/* Cabecera de la Tarjeta: Jornada en grande, Resultado y Fecha/Campo */}
@@ -482,7 +488,7 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* Barra de Control y Navegación entre Jornadas (Destacada y Clara) */}
-      <div className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-900/95 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl shadow-black/40 backdrop-blur-md">
+      <div className="bg-gradient-to-br from-[#2a1218] via-[#1b1626] to-[#111827] border border-red-500/30 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl shadow-black/50 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
           
           {/* Botón Jornada Anterior */}
@@ -565,8 +571,12 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
             <p className="text-xs">No hay partidos registrados en esta jornada.</p>
           </div>
         ) : (
-          currentJornada.partidos.map((partido: PartidoCalendario) => {
+          currentJornada.partidos.map((partido: PartidoCalendario, idx: number) => {
             const hasScore = partido.goles_local !== null && partido.goles_visitante !== null;
+            const alternatingCardStyle =
+              idx % 2 === 0
+                ? 'bg-[#0c1424] hover:bg-[#111c33] border-slate-800'
+                : 'bg-[#162136] hover:bg-[#1c2a44] border-slate-700/80';
 
             return (
               <div
@@ -574,7 +584,7 @@ export const CalendarSlider: React.FC<CalendarSliderProps> = ({
                 onClick={() => onSelectMatch?.(partido)}
                 role="button"
                 tabIndex={0}
-                className="bg-slate-900/80 border border-slate-800 hover:border-red-500/40 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-md transition-all hover:bg-slate-900/90 active:scale-[0.99] space-y-2.5 sm:space-y-3 cursor-pointer group"
+                className={`${alternatingCardStyle} border hover:border-red-500/40 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-md transition-all active:scale-[0.99] space-y-2.5 sm:space-y-3 cursor-pointer group`}
               >
                 {/* Cabecera del Partido: Fecha, Hora, Estado y Campo */}
                 <div className="flex items-center justify-between text-[11px] text-slate-400 pb-2 border-b border-slate-800/60 gap-1.5">
